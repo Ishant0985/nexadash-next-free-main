@@ -1,14 +1,16 @@
 "use client";
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import PageHeading from '@/components/layout/page-heading';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { db } from '@/firebaseClient';
+import { db, getNextId } from '@/firebaseClient';
 import { collection, addDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 const AddStaff = () => {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [address, setAddress] = useState("");
@@ -25,23 +27,28 @@ const AddStaff = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const profilePicURL = profilePic ? URL.createObjectURL(profilePic) : "";
-    const newStaff = {
-      name,
-      role,
-      address,
-      email,
-      phone,
-      profilePic: profilePicURL,
-      salary,
-      usertype: "staff", // default for staff pages.
-      createdAt: new Date().toISOString(),
-    };
-
     try {
+      const staffId = await getNextId('staffCounter');
+      const profilePicURL = profilePic ? URL.createObjectURL(profilePic) : "";
+      
+      const newStaff = {
+        staffId: `STAFF${String(staffId).padStart(4, '0')}`,
+        name,
+        role,
+        address,
+        email,
+        phone,
+        profilePic: profilePicURL,
+        salary,
+        usertype: "staff",
+        status: "Active",
+        joiningDate: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+
       await addDoc(collection(db, "staff"), newStaff);
       toast.success("Staff added successfully!");
-      setName(""); setRole(""); setAddress(""); setEmail(""); setPhone(""); setProfilePic(null); setSalary("");
+      router.push('/manage-staff');
     } catch (error) {
       console.error("Error adding staff:", error);
       toast.error("Error adding staff.");

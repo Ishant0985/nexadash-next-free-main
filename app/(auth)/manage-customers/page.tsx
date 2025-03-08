@@ -12,18 +12,18 @@ import { db } from '@/firebaseClient';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-// Define our simple columns configuration for this table.
+// Update columns configuration for the table
 const customerColumns = [
   {
-    header: "ID",
-    accessorKey: "id",
+    header: "Customer ID",
+    accessorKey: "customerId",
   },
   {
     header: "Name",
     accessorKey: "firstName",
     cell: (info: any) => (
-      <Link href={`/customer-details?id=${info.row.original.id}`}>
-        {info.getValue()}
+      <Link href={`/customer-details?id=${info.row.original.id}`} className="text-blue-600 hover:underline">
+        {`${info.row.original.firstName} ${info.row.original.lastName || ''}`}
       </Link>
     ),
   },
@@ -35,12 +35,26 @@ const customerColumns = [
     header: "Phone",
     accessorKey: "phone",
   },
+  {
+    header: "User Type",
+    accessorKey: "usertype",
+  },
+  {
+    header: "Created At",
+    accessorKey: "createdAt",
+    cell: (info: any) => {
+      const date = info.getValue() ? new Date(info.getValue()) : null;
+      return date ? format(date, 'PP') : '';
+    }
+  }
 ];
 
 export default function ManageCustomers() {
   const [date, setDate] = useState<Date>();
   const [mainDate, setMainDate] = useState<Date>();
   const [customers, setCustomers] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredCustomers, setFilteredCustomers] = useState<any[]>([]);
 
   const fetchCustomers = async () => {
     try {
@@ -60,6 +74,30 @@ export default function ManageCustomers() {
     fetchCustomers();
   }, []);
 
+  useEffect(() => {
+    let filtered = [...customers];
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(customer => 
+        customer.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.phone?.includes(searchTerm)
+      );
+    }
+
+    // Apply date filter if both dates are selected
+    if (date && mainDate) {
+      filtered = filtered.filter(customer => {
+        const customerDate = new Date(customer.createdAt);
+        return customerDate >= date && customerDate <= mainDate;
+      });
+    }
+
+    setFilteredCustomers(filtered);
+  }, [customers, searchTerm, date, mainDate]);
+
   const handleDelete = async (customerId: string) => {
     try {
       await deleteDoc(doc(db, 'customers', customerId));
@@ -77,14 +115,18 @@ export default function ManageCustomers() {
       <div className="min-h-[calc(100vh_-_160px)] w-full">
         <div className="flex items-center justify-between gap-4 overflow-x-auto rounded-t-lg bg-white px-5 py-[17px]">
           <div className="flex items-center gap-2.5">
-            <Button type="button" variant={'outline'} className="bg-light-theme ring-0">
-              All
-            </Button>
+            <input
+              type="text"
+              placeholder="Search customers..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
             <div className="flex items-center gap-2">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button type="button" variant={'outline-general'}>
-                    <CalendarCheck />
+                    <CalendarCheck className="mr-2 h-4 w-4" />
                     {date ? format(date, 'PP') : <span>Start date</span>}
                   </Button>
                 </PopoverTrigger>
@@ -96,7 +138,7 @@ export default function ManageCustomers() {
               <Popover>
                 <PopoverTrigger asChild>
                   <Button type="button" variant={'outline-general'}>
-                    <CalendarCheck />
+                    <CalendarCheck className="mr-2 h-4 w-4" />
                     {mainDate ? format(mainDate, 'PPP') : <span>End date</span>}
                   </Button>
                 </PopoverTrigger>
@@ -107,59 +149,61 @@ export default function ManageCustomers() {
             </div>
           </div>
           <div className="flex items-center gap-2.5">
-            <div id="search-table"></div>
-            <Select>
-              <SelectTrigger className="py-2 text-xs text-black shadow-sm ring-1 ring-gray-300">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <div className="space-y-1.5">
-                  <SelectItem className="text-xs/tight" value="Weekly">
-                    Weekly
-                  </SelectItem>
-                  <SelectItem className="text-xs/tight" value="Monthly">
-                    Monthly
-                  </SelectItem>
-                  <SelectItem className="text-xs/tight" value="Yearly">
-                    Yearly
-                  </SelectItem>
-                </div>
-              </SelectContent>
-            </Select>
             <Link href="/add-customers">
               <Button variant={'black'}>
-                <Plus />
+                <Plus className="mr-2 h-4 w-4" />
                 New Customer
               </Button>
             </Link>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse">
-            <thead>
+        <div className="overflow-x-auto bg-white">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
                 {customerColumns.map((col) => (
-                  <th key={col.header} className="border px-4 py-2">{col.header}</th>
+                  <th key={col.header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {col.header}
+                  </th>
                 ))}
-                <th className="border px-4 py-2">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
-            <tbody>
-              {customers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-100">
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredCustomers.map((customer) => (
+                <tr key={customer.id} className="hover:bg-gray-50">
                   {customerColumns.map((col) => (
-                    <td key={col.header} className="border px-4 py-2">
+                    <td key={col.header} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {col.cell
                         ? col.cell({
-                            row: { original: customer, getValue: () => customer[col.accessorKey] },
+                            row: { original: customer },
+                            getValue: () => customer[col.accessorKey]
                           })
                         : customer[col.accessorKey]}
                     </td>
                   ))}
-                  <td className="border px-4 py-2">
-                    <Button variant="outline" size="small" onClick={() => handleDelete(customer.id)}>
-                      Delete
-                    </Button>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div className="flex gap-2">
+                      <Link href={`/customer-details?id=${customer.id}`}>
+                        <Button variant="outline" size="small">
+                          Edit
+                        </Button>
+                      </Link>
+                      <Button 
+                        variant="outline" 
+                        size="small" 
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to delete this customer?')) {
+                            handleDelete(customer.id);
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -1,7 +1,7 @@
 // firebaseClient.ts
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
 
 // Firebase client configuration using environment variables
 const firebaseConfig = {
@@ -18,3 +18,18 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Helper function to get and increment counter
+export async function getNextId(counterName: string) {
+  const counterRef = doc(db, 'counters', counterName);
+  const counterDoc = await getDoc(counterRef);
+  
+  if (!counterDoc.exists()) {
+    await setDoc(counterRef, { value: 1 });
+    return 1;
+  }
+
+  const currentValue = counterDoc.data().value;
+  await updateDoc(counterRef, { value: increment(1) });
+  return currentValue;
+}

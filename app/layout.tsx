@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import '@/app/globals.css'
 import AuthGuard from '@/components/AuthGuard'
+import { Toaster } from 'react-hot-toast'
 
 export const metadata: Metadata = {
   title: 'MacDash',
@@ -16,6 +17,7 @@ export default async function RootLayout({
     <html lang="en" className="scroll-smooth">
       <body className="bg-gray-400 font-plus-jakarta text-sm/[22px] font-normal text-gray antialiased">
         <AuthGuard>{children}</AuthGuard>
+        <Toaster position="top-right" />
       </body>
     </html>
   )
