@@ -9,23 +9,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
+import PageHeading from '@/components/layout/page-heading';
+import AddressSelector from '@/components/custom/address-selector';
 import PhoneInput from 'react-phone-input-2';
 import 'react-phone-input-2/lib/style.css';
-import PageHeading from '@/components/layout/page-heading';
 
 interface Customer {
   id: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  usertype?: string;
-  country?: string;
-  state?: string;
-  district?: string;
-  city?: string;
-  pincode?: string;
+  customerId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  usertype: string;
+  country: string;
+  state: string;
+  district: string;
+  city: string;
+  pincode: string;
   profilePic?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export default function CustomerDetailsPage() {
@@ -33,7 +37,7 @@ export default function CustomerDetailsPage() {
   const router = useRouter();
   const customerId = searchParams.get('id');
   const [isEditing, setIsEditing] = useState(false);
-  const [customer, setCustomer] = useState<any>(null);
+  const [customer, setCustomer] = useState<Customer | null>(null);
   const [editForm, setEditForm] = useState({
     firstName: '',
     lastName: '',
@@ -82,14 +86,16 @@ export default function CustomerDetailsPage() {
 
   const handleSave = async () => {
     try {
-      if (!customerId) return;
+      if (!customerId || !customer) return;
       
-      await updateDoc(doc(db, 'customers', customerId), {
+      const updatedCustomer: Partial<Customer> = {
+        ...customer,
         ...editForm,
         updatedAt: new Date().toISOString(),
-      });
+      };
       
-      setCustomer({ ...customer, ...editForm });
+      await updateDoc(doc(db, 'customers', customerId), updatedCustomer);
+      setCustomer({ ...customer, ...editForm } as Customer);
       setIsEditing(false);
       toast.success("Customer details updated successfully!");
     } catch (error) {
@@ -126,8 +132,26 @@ export default function CustomerDetailsPage() {
               </div>
             </div>
 
+            {customer.profilePic && (
+              <div className="mb-6 flex justify-center">
+                <div className="relative w-32 h-32 rounded-full overflow-hidden">
+                  <Image 
+                    src={customer.profilePic} 
+                    alt="Profile" 
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Customer ID</label>
+                  <p className="mt-1 text-gray-900">{customer.customerId}</p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700">First Name</label>
                   {isEditing ? (
@@ -202,84 +226,34 @@ export default function CustomerDetailsPage() {
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Country</label>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.country}
-                      onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
-                    />
-                  ) : (
-                    <p className="mt-1 text-gray-900">{customer.country}</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">State</label>
-                    {isEditing ? (
-                      <Input
-                        value={editForm.state}
-                        onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
-                      />
-                    ) : (
-                      <p className="mt-1 text-gray-900">{customer.state}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">District</label>
-                    {isEditing ? (
-                      <Input
-                        value={editForm.district}
-                        onChange={(e) => setEditForm({ ...editForm, district: e.target.value })}
-                      />
-                    ) : (
-                      <p className="mt-1 text-gray-900">{customer.district}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">City</label>
-                    {isEditing ? (
-                      <Input
-                        value={editForm.city}
-                        onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
-                      />
-                    ) : (
-                      <p className="mt-1 text-gray-900">{customer.city}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Pincode</label>
-                    {isEditing ? (
-                      <Input
-                        value={editForm.pincode}
-                        onChange={(e) => setEditForm({ ...editForm, pincode: e.target.value })}
-                      />
-                    ) : (
-                      <p className="mt-1 text-gray-900">{customer.pincode}</p>
-                    )}
-                  </div>
-                </div>
+                {isEditing && (
+                  <AddressSelector
+                    country={editForm.country}
+                    setCountry={(value) => setEditForm({ ...editForm, country: value })}
+                    state={editForm.state}
+                    setState={(value) => setEditForm({ ...editForm, state: value })}
+                    district={editForm.district}
+                    setDistrict={(value) => setEditForm({ ...editForm, district: value })}
+                    city={editForm.city}
+                    setCity={(value) => setEditForm({ ...editForm, city: value })}
+                    pincode={editForm.pincode}
+                    setPincode={(value) => setEditForm({ ...editForm, pincode: value })}
+                  />
+                )}
+                {!isEditing && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Address</label>
+                      <p className="mt-1 text-gray-900">
+                        {[customer.city, customer.district, customer.state, customer.country, customer.pincode]
+                          .filter(Boolean)
+                          .join(', ')}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-
-            {customer.profilePic && (
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700">Profile Picture</label>
-                <div className="mt-2">
-                  <Image 
-                    src={customer.profilePic} 
-                    alt="Profile" 
-                    width={100} 
-                    height={100} 
-                    className="rounded-full object-cover"
-                  />
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

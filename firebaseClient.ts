@@ -29,7 +29,8 @@ export async function getNextId(counterName: string) {
     return 1;
   }
 
-  const currentValue = counterDoc.data().value;
-  await updateDoc(counterRef, { value: increment(1) });
-  return currentValue;
+  const currentValue = counterDoc.data().value || 0;
+  const nextValue = currentValue + 1;
+  await updateDoc(counterRef, { value: nextValue });
+  return nextValue;
 }

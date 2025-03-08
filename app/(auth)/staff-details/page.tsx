@@ -9,21 +9,49 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import PageHeading from '@/components/layout/page-heading';
+import AddressSelector from '@/components/custom/address-selector';
+import PhoneInput from 'react-phone-input-2';
+import 'react-phone-input-2/lib/style.css';
+
+interface Staff {
+  id: string;
+  staffId: string;
+  name: string;
+  role: string;
+  email: string;
+  phone: string;
+  status: string;
+  salary: string;
+  country: string;
+  state: string;
+  district: string;
+  city: string;
+  pincode: string;
+  profilePic?: string;
+  usertype: string;
+  joiningDate: string;
+  createdAt: string;
+  updatedAt?: string;
+}
 
 export default function StaffDetailsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const staffId = searchParams.get('id');
   const [isEditing, setIsEditing] = useState(false);
-  const [staff, setStaff] = useState<any>(null);
+  const [staff, setStaff] = useState<Staff | null>(null);
   const [editForm, setEditForm] = useState({
     name: '',
     role: '',
     email: '',
     phone: '',
-    address: '',
     status: '',
     salary: '',
+    country: '',
+    state: '',
+    district: '',
+    city: '',
+    pincode: '',
   });
 
   useEffect(() => {
@@ -32,16 +60,20 @@ export default function StaffDetailsPage() {
         if (staffId) {
           const staffDoc = await getDoc(doc(db, "staff", staffId));
           if (staffDoc.exists()) {
-            const data = { id: staffDoc.id, ...staffDoc.data() };
+            const data = { id: staffId, ...staffDoc.data() } as Staff;
             setStaff(data);
             setEditForm({
               name: data.name || '',
               role: data.role || '',
               email: data.email || '',
               phone: data.phone || '',
-              address: data.address || '',
               status: data.status || '',
               salary: data.salary || '',
+              country: data.country || '',
+              state: data.state || '',
+              district: data.district || '',
+              city: data.city || '',
+              pincode: data.pincode || '',
             });
           } else {
             toast.error("Staff not found.");
@@ -58,13 +90,15 @@ export default function StaffDetailsPage() {
 
   const handleSave = async () => {
     try {
-      if (!staffId) return;
+      if (!staffId || !staff) return;
       
-      await updateDoc(doc(db, 'staff', staffId), {
+      const updatedStaff: Partial<Staff> = {
+        ...staff,
         ...editForm,
         updatedAt: new Date().toISOString(),
-      });
+      };
       
+      await updateDoc(doc(db, 'staff', staffId), updatedStaff);
       setStaff({ ...staff, ...editForm });
       setIsEditing(false);
       toast.success("Staff details updated successfully!");
@@ -101,6 +135,19 @@ export default function StaffDetailsPage() {
                 )}
               </div>
             </div>
+
+            {staff.profilePic && (
+              <div className="mb-6 flex justify-center">
+                <div className="relative w-32 h-32 rounded-full overflow-hidden">
+                  <Image 
+                    src={staff.profilePic} 
+                    alt="Profile" 
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
@@ -145,33 +192,23 @@ export default function StaffDetailsPage() {
                     <p className="mt-1 text-gray-900">{staff.email}</p>
                   )}
                 </div>
-              </div>
 
-              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Phone</label>
                   {isEditing ? (
-                    <Input
+                    <PhoneInput
+                      country={'in'}
                       value={editForm.phone}
-                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      onChange={(phone) => setEditForm({ ...editForm, phone })}
+                      inputStyle={{ width: '100%' }}
                     />
                   ) : (
                     <p className="mt-1 text-gray-900">{staff.phone}</p>
                   )}
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Address</label>
-                  {isEditing ? (
-                    <Input
-                      value={editForm.address}
-                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                    />
-                  ) : (
-                    <p className="mt-1 text-gray-900">{staff.address}</p>
-                  )}
-                </div>
-
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
                   {isEditing ? (
@@ -196,23 +233,35 @@ export default function StaffDetailsPage() {
                     <p className="mt-1 text-gray-900">{staff.salary}</p>
                   )}
                 </div>
+
+                {isEditing && (
+                  <AddressSelector
+                    country={editForm.country}
+                    setCountry={(value) => setEditForm({ ...editForm, country: value })}
+                    state={editForm.state}
+                    setState={(value) => setEditForm({ ...editForm, state: value })}
+                    district={editForm.district}
+                    setDistrict={(value) => setEditForm({ ...editForm, district: value })}
+                    city={editForm.city}
+                    setCity={(value) => setEditForm({ ...editForm, city: value })}
+                    pincode={editForm.pincode}
+                    setPincode={(value) => setEditForm({ ...editForm, pincode: value })}
+                  />
+                )}
+                {!isEditing && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Address</label>
+                      <p className="mt-1 text-gray-900">
+                        {[staff.city, staff.district, staff.state, staff.country, staff.pincode]
+                          .filter(Boolean)
+                          .join(', ')}
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-
-            {staff.profilePic && (
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700">Profile Picture</label>
-                <div className="mt-2">
-                  <Image 
-                    src={staff.profilePic} 
-                    alt="Profile" 
-                    width={100} 
-                    height={100} 
-                    className="rounded-full object-cover"
-                  />
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
