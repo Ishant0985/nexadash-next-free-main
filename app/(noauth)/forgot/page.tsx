@@ -1,10 +1,37 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { AtSign } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
+import { auth } from '@/firebaseClient'
+import { sendPasswordResetEmail } from 'firebase/auth'
+import toast from 'react-hot-toast'
 
 export default function Forgot() {
+    const router = useRouter()
+    const [email, setEmail] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setLoading(true)
+        try {
+            await sendPasswordResetEmail(auth, email)
+            toast.success('Password reset email sent! Please check your inbox.')
+            router.push('/login')
+        } catch (error: any) {
+            console.error('Error:', error)
+            toast.error('Failed to send reset email. Please try again.')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     return (
         <div className="grid h-screen w-full gap-5 p-4 md:grid-cols-2">
             <div className="relative hidden overflow-hidden rounded-[20px] bg-[#3B06D2] p-4 md:block md:h-[calc(100vh_-_32px)]">
@@ -50,7 +77,7 @@ export default function Forgot() {
                         </p>
                     </CardHeader>
                     <CardContent>
-                        <form className="space-y-[30px]">
+                        <form className="space-y-[30px]" onSubmit={handleSubmit}>
                             <div className="relative space-y-3">
                                 <label className="block font-semibold leading-none text-black">
                                     Email address
@@ -59,6 +86,9 @@ export default function Forgot() {
                                     type="email"
                                     variant={'input-form'}
                                     placeholder="username@domain.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
                                     iconRight={
                                         <AtSign className="size-[18px]" />
                                     }
@@ -70,9 +100,16 @@ export default function Forgot() {
                                 variant={'black'}
                                 size={'large'}
                                 className="w-full"
+                                disabled={loading}
                             >
-                                Submit
+                                {loading ? 'Sending...' : 'Submit'}
                             </Button>
+                            <Link
+                                href="/login"
+                                className="flex items-center justify-center gap-2 pl-1.5 text-sm/tight font-semibold text-black hover:text-[#3C3C3D]"
+                            >
+                                Back to Login
+                            </Link>
                         </form>
                     </CardContent>
                 </Card>

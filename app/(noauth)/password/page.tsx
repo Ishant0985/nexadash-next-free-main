@@ -1,11 +1,86 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { auth } from '@/firebaseClient'
+import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth'
+import toast from 'react-hot-toast'
 
 export default function Password() {
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const [loading, setLoading] = useState(false)
+    const [verifying, setVerifying] = useState(true)
+    const [password, setPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
+    const [oobCode, setOobCode] = useState<string | null>(null)
+
+    useEffect(() => {
+        const code = searchParams.get('oobCode')
+        if (!code) {
+            toast.error('Invalid password reset link')
+            router.push('/login')
+            return
+        }
+
+        const verifyCode = async () => {
+            try {
+                await verifyPasswordResetCode(auth, code)
+                setOobCode(code)
+            } catch (error) {
+                console.error('Error verifying reset code:', error)
+                toast.error('Invalid or expired reset link')
+                router.push('/login')
+            } finally {
+                setVerifying(false)
+            }
+        }
+
+        verifyCode()
+    }, [searchParams, router])
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        if (password !== confirmPassword) {
+            toast.error('Passwords do not match')
+            return
+        }
+        if (password.length < 8) {
+            toast.error('Password must be at least 8 characters')
+            return
+        }
+        if (!oobCode) {
+            toast.error('Invalid reset code')
+            return
+        }
+
+        setLoading(true)
+        try {
+            await confirmPasswordReset(auth, oobCode, password)
+            toast.success('Password reset successful!')
+            router.push('/login')
+        } catch (error) {
+            console.error('Error resetting password:', error)
+            toast.error('Failed to reset password. Please try again.')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    if (verifying) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <p>Verifying reset link...</p>
+            </div>
+        )
+    }
+
     return (
         <div className="grid h-screen w-full gap-5 p-4 md:grid-cols-2">
             <div className="relative hidden overflow-hidden rounded-[20px] bg-[#3B06D2] p-4 md:block md:h-[calc(100vh_-_32px)]">
@@ -51,21 +126,20 @@ export default function Password() {
                         </p>
                     </CardHeader>
                     <CardContent>
-                        <form className="space-y-[30px]">
+                        <form className="space-y-[30px]" onSubmit={handleSubmit}>
                             <div className="relative space-y-3">
                                 <label className="block font-semibold leading-none text-black">
-                                    password
+                                    New password
                                 </label>
                                 <Input
                                     type="password"
                                     variant={'input-form'}
-                                    placeholder="Abc*********"
+                                    placeholder="Enter new password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    minLength={8}
                                 />
-                                <div className="!mt-4 grid grid-cols-3 gap-[18px]">
-                                    <span className="h-1 rounded-full bg-danger" />
-                                    <span className="h-1 rounded-full bg-warning" />
-                                    <span className="h-1 rounded-full bg-gray-300" />
-                                </div>
                             </div>
                             <div className="relative space-y-3">
                                 <label className="block font-semibold leading-none text-black">
@@ -74,7 +148,10 @@ export default function Password() {
                                 <Input
                                     type="password"
                                     variant={'input-form'}
-                                    placeholder="Abc*********"
+                                    placeholder="Confirm new password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    required
                                 />
                             </div>
 
@@ -83,8 +160,9 @@ export default function Password() {
                                 variant={'black'}
                                 size={'large'}
                                 className="w-full"
+                                disabled={loading}
                             >
-                                Reset password
+                                {loading ? 'Resetting...' : 'Reset password'}
                             </Button>
                             <Link
                                 href="/login"
