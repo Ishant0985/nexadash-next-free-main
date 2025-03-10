@@ -12,6 +12,23 @@ import { db } from '@/firebaseClient';
 import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
+interface StaffMember {
+  id: string;
+  staffId: string;
+  name: string;
+  role: string;
+  address: string;
+  email: string;
+  phone: string;
+  joiningDate: string | number | Date;
+  status: string;
+  [key: string]: any; // For other potential properties
+}
+
+interface StaffColumnProps {
+  getValue: () => any;
+}
+
 const staffColumns = [
   { header: "Staff ID", accessorKey: "staffId" },
   { header: "Name", accessorKey: "name" },
@@ -21,7 +38,7 @@ const staffColumns = [
   { header: "Phone", accessorKey: "phone" },
   { header: "Joining Date", 
     accessorKey: "joiningDate",
-    cell: (info: any) => {
+    cell: (info: StaffColumnProps) => {
       const date = info.getValue() ? new Date(info.getValue()) : null;
       return date ? format(date, 'PP') : 'N/A';
     }
@@ -30,13 +47,13 @@ const staffColumns = [
 ];
 
 const ManageStaff = () => {
-  const [staffList, setStaffList] = useState<any[]>([]);
-  const [date, setDate] = useState<Date>();
-  const [mainDate, setMainDate] = useState<Date>();
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [date, setDate] = useState<Date | undefined>();
+  const [mainDate, setMainDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredStaff, setFilteredStaff] = useState<any[]>([]);
+  const [filteredStaff, setFilteredStaff] = useState<StaffMember[]>([]);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState<any>(null);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
 
   const fetchStaff = async () => {
     try {
@@ -44,7 +61,7 @@ const ManageStaff = () => {
       const list = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as StaffMember[];
       setStaffList(list);
     } catch (error) {
       console.error(error);
@@ -92,6 +109,8 @@ const ManageStaff = () => {
   };
 
   const handleEdit = async () => {
+    if (!selectedStaff) return;
+    
     try {
       await updateDoc(doc(db, 'staff', selectedStaff.id), selectedStaff);
       toast.success("Staff updated successfully!");
@@ -100,6 +119,15 @@ const ManageStaff = () => {
     } catch (error) {
       console.error("Error updating staff:", error);
       toast.error("Error updating staff.");
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof StaffMember) => {
+    if (selectedStaff) {
+      setSelectedStaff({
+        ...selectedStaff,
+        [field]: e.target.value
+      });
     }
   };
 
@@ -212,44 +240,44 @@ const ManageStaff = () => {
       </div>
 
       {editModalOpen && selectedStaff && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg max-w-md w-full">
             <h2 className="text-xl font-bold mb-4">Edit Staff Details</h2>
             <div className="space-y-4">
               <Input
                 type="text"
                 value={selectedStaff.name}
-                onChange={(e) => setSelectedStaff({ ...selectedStaff, name: e.target.value })}
+                onChange={(e) => handleInputChange(e, 'name')}
                 placeholder="Name"
               />
               <Input
                 type="text"
                 value={selectedStaff.role}
-                onChange={(e) => setSelectedStaff({ ...selectedStaff, role: e.target.value })}
+                onChange={(e) => handleInputChange(e, 'role')}
                 placeholder="Role"
               />
               <Input
                 type="text"
                 value={selectedStaff.address}
-                onChange={(e) => setSelectedStaff({ ...selectedStaff, address: e.target.value })}
+                onChange={(e) => handleInputChange(e, 'address')}
                 placeholder="Address"
               />
               <Input
                 type="email"
                 value={selectedStaff.email}
-                onChange={(e) => setSelectedStaff({ ...selectedStaff, email: e.target.value })}
+                onChange={(e) => handleInputChange(e, 'email')}
                 placeholder="Email"
               />
               <Input
                 type="tel"
                 value={selectedStaff.phone}
-                onChange={(e) => setSelectedStaff({ ...selectedStaff, phone: e.target.value })}
+                onChange={(e) => handleInputChange(e, 'phone')}
                 placeholder="Phone"
               />
               <Input
                 type="text"
                 value={selectedStaff.status}
-                onChange={(e) => setSelectedStaff({ ...selectedStaff, status: e.target.value })}
+                onChange={(e) => handleInputChange(e, 'status')}
                 placeholder="Status"
               />
               <div className="flex justify-end gap-2 mt-4">

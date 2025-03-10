@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, forwardRef } from 'react'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -34,8 +34,67 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '@/firebaseClient'
 
+// Custom button component for notification trigger
+const NotificationButton = forwardRef<HTMLButtonElement, { hasNotifications: boolean }>(
+  ({ hasNotifications }, ref) => (
+    <button
+      type="button"
+      className="relative duration-300 hover:opacity-80"
+      ref={ref}
+    >
+      <Bell className="h-5 w-5" />
+      {hasNotifications && (
+        <Badge
+          variant={'primary'}
+          size={'number'}
+          className="absolute -right-0.5 -top-0.5 grid h-3 min-w-3 place-content-center px-1 text-[9px]"
+        >
+          {hasNotifications ? '!' : '0'}
+        </Badge>
+      )}
+    </button>
+  )
+)
+NotificationButton.displayName = 'NotificationButton'
+
+// Custom component for user dropdown trigger
+const UserDropdownTrigger = forwardRef<HTMLDivElement, { 
+  photoURL: string, 
+  displayName: string 
+}>(({ photoURL, displayName }, ref) => (
+  <div 
+    className="group flex cursor-pointer items-center gap-2.5 rounded-lg [&[data-state=open]>button>svg]:rotate-180"
+    ref={ref}
+  >
+    <div className="size-8 shrink-0 overflow-hidden rounded-full">
+      <Image
+        src={photoURL}
+        width={32}
+        height={32}
+        className="h-full w-full object-cover"
+        alt="Profile Img"
+      />
+    </div>
+    <div className="hidden space-y-1 lg:block">
+      <h5 className="line-clamp-1 text-[10px]/3 font-semibold">
+        Welcome back 👋
+      </h5>
+      <h2 className="line-clamp-1 text-xs font-bold text-black">
+        {displayName}
+      </h2>
+    </div>
+    <button
+      type="button"
+      className="-ml-1 mt-auto text-black transition group-hover:opacity-70"
+    >
+      <ChevronDown className="h-4 w-4 shrink-0 duration-300" />
+    </button>
+  </div>
+))
+UserDropdownTrigger.displayName = 'UserDropdownTrigger'
+
 const Header = () => {
-  const [date, setDate] = useState<Date>()
+  const [date, setDate] = useState<Date | undefined>()
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -148,22 +207,8 @@ const Header = () => {
           </Link>
           <div className="order-2 lg:order-none">
             <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="relative duration-300 hover:opacity-80"
-                >
-                  <Bell className="h-5 w-5" />
-                  {!!notifications?.length && (
-                    <Badge
-                      variant={'primary'}
-                      size={'number'}
-                      className="absolute -right-0.5 -top-0.5 grid h-3 min-w-3 place-content-center px-1 text-[9px]"
-                    >
-                      {notifications?.length ?? 0}
-                    </Badge>
-                  )}
-                </button>
+              <PopoverTrigger>
+                <NotificationButton hasNotifications={!!notifications?.length} />
               </PopoverTrigger>
               <PopoverContent
                 sideOffset={12}
@@ -248,7 +293,7 @@ const Header = () => {
           </div>
           <div className="order-1 lg:order-none">
             <Popover>
-              <PopoverTrigger asChild>
+              <PopoverTrigger>
                 <Button
                   variant={'outline-general'}
                   className="text-wrap p-0 shadow-none ring-0 lg:px-2.5 lg:py-2 lg:shadow-sm lg:ring-1"
@@ -275,32 +320,11 @@ const Header = () => {
           </div>
           <div className="hidden lg:block">
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <div className="group flex cursor-pointer items-center gap-2.5 rounded-lg [&[data-state=open]>button>svg]:rotate-180">
-                  <div className="size-8 shrink-0 overflow-hidden rounded-full">
-                    <Image
-                      src={currentUser.photoURL}
-                      width={32}
-                      height={32}
-                      className="h-full w-full object-cover"
-                      alt="Profile Img"
-                    />
-                  </div>
-                  <div className="hidden space-y-1 lg:block">
-                    <h5 className="line-clamp-1 text-[10px]/3 font-semibold">
-                      Welcome back 👋
-                    </h5>
-                    <h2 className="line-clamp-1 text-xs font-bold text-black">
-                      {currentUser.displayName}
-                    </h2>
-                  </div>
-                  <button
-                    type="button"
-                    className="-ml-1 mt-auto text-black transition group-hover:opacity-70"
-                  >
-                    <ChevronDown className="h-4 w-4 shrink-0 duration-300" />
-                  </button>
-                </div>
+              <DropdownMenuTrigger>
+                <UserDropdownTrigger 
+                  photoURL={currentUser.photoURL} 
+                  displayName={currentUser.displayName} 
+                />
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"

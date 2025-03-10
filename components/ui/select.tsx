@@ -11,6 +11,21 @@ const SelectGroup = SelectPrimitive.Group
 
 const SelectValue = SelectPrimitive.Value
 
+// Custom icon component for select
+const SelectIcon = React.forwardRef<
+    HTMLSpanElement,
+    { icons?: string }
+>(({ icons }, ref) => (
+    <span ref={ref} className="pointer-events-none absolute right-3.5">
+        {icons === 'shorting' ? (
+            <ChevronsUpDown className="size-4 shrink-0 !rotate-0 text-gray transition" />
+        ) : (
+            <ChevronDown className="h-4 w-4 text-gray transition" />
+        )}
+    </span>
+))
+SelectIcon.displayName = 'SelectIcon'
+
 const SelectTrigger = React.forwardRef<
     React.ElementRef<typeof SelectPrimitive.Trigger>,
     React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> & {
@@ -26,15 +41,8 @@ const SelectTrigger = React.forwardRef<
         {...props}
     >
         {children}
-        <SelectPrimitive.Icon asChild>
-            {icons === 'shorting' ? (
-                <>
-                    <ChevronsUpDown className="size-4 shrink-0 !rotate-0 text-gray transition" />
-                </>
-            ) : (
-                <ChevronDown className="h-4 w-4 text-gray transition" />
-            )}
-        </SelectPrimitive.Icon>
+        {/* Replace asChild with custom component */}
+        <SelectIcon icons={icons} />
     </SelectPrimitive.Trigger>
 ))
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
@@ -130,8 +138,7 @@ const SelectItem = React.forwardRef<
         )}
         {...props}
     >
- 
-        <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+        <span className="select-item-text">{children}</span>
     </SelectPrimitive.Item>
 ))
 SelectItem.displayName = SelectPrimitive.Item.displayName

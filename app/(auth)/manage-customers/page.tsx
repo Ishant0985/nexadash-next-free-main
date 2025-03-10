@@ -12,6 +12,25 @@ import { db } from '@/firebaseClient';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
+interface Customer {
+  id: string;
+  customerId: string;
+  firstName: string;
+  lastName?: string;
+  email: string;
+  phone: string;
+  usertype: string;
+  createdAt: string | number | Date;
+  [key: string]: any; // For other potential properties
+}
+
+interface CustomerColumnProps {
+  row: {
+    original: Customer;
+  };
+  getValue: () => any;
+}
+
 // Update columns configuration for the table
 const customerColumns = [
   {
@@ -21,7 +40,7 @@ const customerColumns = [
   {
     header: "Name",
     accessorKey: "firstName",
-    cell: (info: any) => (
+    cell: (info: CustomerColumnProps) => (
       <Link href={`/customer-details?id=${info.row.original.id}`} className="text-blue-600 hover:underline">
         {`${info.row.original.firstName} ${info.row.original.lastName || ''}`}
       </Link>
@@ -42,7 +61,7 @@ const customerColumns = [
   {
     header: "Created At",
     accessorKey: "createdAt",
-    cell: (info: any) => {
+    cell: (info: CustomerColumnProps) => {
       const date = info.getValue() ? new Date(info.getValue()) : null;
       return date ? format(date, 'PP') : '';
     }
@@ -50,11 +69,11 @@ const customerColumns = [
 ];
 
 export default function ManageCustomers() {
-  const [date, setDate] = useState<Date>();
-  const [mainDate, setMainDate] = useState<Date>();
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [date, setDate] = useState<Date | undefined>();
+  const [mainDate, setMainDate] = useState<Date | undefined>();
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredCustomers, setFilteredCustomers] = useState<any[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
 
   const fetchCustomers = async () => {
     try {
@@ -62,7 +81,7 @@ export default function ManageCustomers() {
       const customerList = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }));
+      })) as Customer[];
       setCustomers(customerList);
     } catch (error) {
       console.error(error);

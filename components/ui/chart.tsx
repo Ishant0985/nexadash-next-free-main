@@ -44,7 +44,7 @@ const ChartContainer = React.forwardRef<
     }
 >(({ id, className, children, config, ...props }, ref) => {
     const uniqueId = React.useId()
-    const chartId = `chart-${id || uniqueId.replace(/:/g, '')}`
+    const chartId = id || `chart-${uniqueId.replace(/:/g, '')}`
 
     return (
         <ChartContext.Provider value={{ config }}>
@@ -89,10 +89,11 @@ ${colorConfig
             itemConfig.color
         return color ? `  --color-${key}: ${color};` : null
     })
+    .filter(Boolean)
     .join('\n')}
 }
 `,
-                ),
+                ).join(''),
             }}
         />
     )
@@ -193,11 +194,11 @@ const ChartTooltipContent = React.forwardRef<
                             key,
                         )
                         const indicatorColor =
-                            color || item.payload.fill || item.color
+                            color || item.payload?.fill || item.color
 
                         return (
                             <div
-                                key={item.dataKey}
+                                key={item.dataKey || index}
                                 className={cn(
                                     '[&>svg]:text-muted-foreground flex w-full items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5',
                                     indicator === 'dot' && 'items-center',
@@ -266,9 +267,11 @@ const ChartTooltipContent = React.forwardRef<
                                                         item.name}
                                                 </span>
                                             </div>
-                                            {item.value && (
+                                            {item.value != null && (
                                                 <span className="font-mono text-foreground font-medium tabular-nums">
-                                                    {item.value.toLocaleString()}
+                                                    {typeof item.value === 'number'
+                                                        ? item.value.toLocaleString()
+                                                        : item.value}
                                                 </span>
                                             )}
                                         </div>
@@ -319,7 +322,7 @@ const ChartLegendContent = React.forwardRef<
                     className,
                 )}
             >
-                {payload.map((item) => {
+                {payload.map((item, index) => {
                     const key = `${nameKey || item.dataKey || 'value'}`
                     const itemConfig = getPayloadConfigFromPayload(
                         config,
@@ -329,7 +332,7 @@ const ChartLegendContent = React.forwardRef<
 
                     return (
                         <div
-                            key={item.value}
+                            key={item.value || index}
                             className={cn(
                                 '[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3',
                             )}
@@ -359,7 +362,7 @@ function getPayloadConfigFromPayload(
     config: ChartConfig,
     payload: unknown,
     key: string,
-) {
+): ChartConfig[string] | undefined {
     if (typeof payload !== 'object' || payload === null) {
         return undefined
     }
