@@ -33,13 +33,15 @@ import { usePathname } from 'next/navigation'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '@/firebaseClient'
+import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 
 // Custom button component for notification trigger
 const NotificationButton = forwardRef<HTMLButtonElement, { hasNotifications: boolean }>(
   ({ hasNotifications }, ref) => (
     <button
       type="button"
-      className="relative duration-300 hover:opacity-80"
+      className="relative duration-300 hover:opacity-80 cursor-pointer"
       ref={ref}
     >
       <Bell className="h-5 w-5" />
@@ -58,11 +60,12 @@ const NotificationButton = forwardRef<HTMLButtonElement, { hasNotifications: boo
 NotificationButton.displayName = 'NotificationButton'
 
 // Custom component for user dropdown trigger
-const UserDropdownTrigger = forwardRef<HTMLDivElement, { 
+const UserDropdownTrigger = forwardRef<HTMLButtonElement, { 
   photoURL: string, 
   displayName: string 
 }>(({ photoURL, displayName }, ref) => (
-  <div 
+  <button 
+    type="button"
     className="group flex cursor-pointer items-center gap-2.5 rounded-lg [&[data-state=open]>button>svg]:rotate-180"
     ref={ref}
   >
@@ -83,13 +86,12 @@ const UserDropdownTrigger = forwardRef<HTMLDivElement, {
         {displayName}
       </h2>
     </div>
-    <button
-      type="button"
+    <span
       className="-ml-1 mt-auto text-black transition group-hover:opacity-70"
     >
       <ChevronDown className="h-4 w-4 shrink-0 duration-300" />
-    </button>
-  </div>
+    </span>
+  </button>
 ))
 UserDropdownTrigger.displayName = 'UserDropdownTrigger'
 
@@ -207,7 +209,7 @@ const Header = () => {
           </Link>
           <div className="order-2 lg:order-none">
             <Popover>
-              <PopoverTrigger>
+              <PopoverTrigger asChild>
                 <NotificationButton hasNotifications={!!notifications?.length} />
               </PopoverTrigger>
               <PopoverContent
@@ -293,10 +295,12 @@ const Header = () => {
           </div>
           <div className="order-1 lg:order-none">
             <Popover>
-              <PopoverTrigger>
-                <Button
-                  variant={'outline-general'}
-                  className="text-wrap p-0 shadow-none ring-0 lg:px-2.5 lg:py-2 lg:shadow-sm lg:ring-1"
+              <PopoverTrigger asChild>
+                <div
+                  className={cn(
+                    buttonVariants({ variant: 'outline-general' }),
+                    "text-wrap p-0 shadow-none ring-0 lg:px-2.5 lg:py-2 lg:shadow-sm lg:ring-1"
+                  )}
                 >
                   <CalendarCheck className="!size-5 lg:!size-4" />
                   {date ? (
@@ -306,7 +310,7 @@ const Header = () => {
                       Schedule
                     </span>
                   )}
-                </Button>
+                </div>
               </PopoverTrigger>
               <PopoverContent className="!w-auto p-0">
                 <Calendar

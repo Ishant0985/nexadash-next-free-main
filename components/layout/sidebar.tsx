@@ -233,6 +233,33 @@ const Sidebar = () => {
                         </AccordionContent>
                     </AccordionItem>
 
+                    <AccordionItem value="item-payroll" className="p-0 shadow-none">
+                        <AccordionTrigger className="nav-link">
+                            <ScrollText className="size-[18px] shrink-0" />
+                            <span>Payroll and Finances</span>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <ul className="submenu space-y-2 pl-12 pr-5">
+                                <li>
+                                    <NavLink
+                                        href="/financial-management"
+                                        isAccordion={true}
+                                    >
+                                        Financial Management
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink
+                                        href="/payroll-management"
+                                        isAccordion={true}
+                                    >
+                                        Payroll Management
+                                    </NavLink>
+                                </li>
+                            </ul>
+                        </AccordionContent>
+                    </AccordionItem>
+
                     <AccordionItem value="item-10" className="p-0 shadow-none">
                         <AccordionTrigger className="nav-link">
                             <HeartHandshake className="size-[18px] shrink-0" />
@@ -423,14 +450,6 @@ const Sidebar = () => {
                                         isAccordion={true}
                                     >
                                         Manage Staff
-                                    </NavLink>
-                                </li>
-                                <li> 
-                                    <NavLink
-                                        href="/salary"
-                                        isAccordion={true}
-                                    >
-                                        Salary
                                     </NavLink>
                                 </li>
                             </ul>

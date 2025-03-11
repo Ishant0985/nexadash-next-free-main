@@ -129,14 +129,16 @@ const Home = () => {
                                         <div className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2.5 py-2 text-xs/tight text-black transition hover:bg-gray-200">
                                             <CalendarCheck className="size-4 shrink-0" />
                                             <Popover>
-                                                <PopoverTrigger>
-                                                    {date ? (
-                                                        format(date, 'PP')
-                                                    ) : (
-                                                        <span>
-                                                            10 Mar, 2024
-                                                        </span>
-                                                    )}{' '}
+                                                <PopoverTrigger asChild>
+                                                    <div>
+                                                        {date ? (
+                                                            format(date, 'PP')
+                                                        ) : (
+                                                            <span>
+                                                                10 Mar, 2024
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="!w-auto p-0">
                                                     <Calendar
@@ -149,14 +151,16 @@ const Home = () => {
                                             </Popover>
                                             <span>-</span>
                                             <Popover>
-                                                <PopoverTrigger>
-                                                    {mainDate ? (
-                                                        format(mainDate, 'PPP')
-                                                    ) : (
-                                                        <span>
-                                                            10 Apr, 2024{' '}
-                                                        </span>
-                                                    )}
+                                                <PopoverTrigger asChild>
+                                                    <div>
+                                                        {mainDate ? (
+                                                            format(mainDate, 'PPP')
+                                                        ) : (
+                                                            <span>
+                                                                10 Apr, 2024
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="!w-auto p-0">
                                                     <Calendar
@@ -250,8 +254,10 @@ const Home = () => {
                             <div className="flex items-center justify-between">
                                 <h3 className="leading-tight">Total Sales</h3>
                                 <Popover>
-                                    <PopoverTrigger>
-                                        <Ellipsis className="size-4 text-black transition hover:text-gray" />
+                                    <PopoverTrigger asChild>
+                                        <button type="button" className="inline-flex">
+                                            <Ellipsis className="size-4 text-black transition hover:text-gray" />
+                                        </button>
                                     </PopoverTrigger>
                                     <PopoverContent
                                         align="end"
@@ -306,8 +312,10 @@ const Home = () => {
                             <div className="flex items-center justify-between">
                                 <h3 className="leading-tight">Total Orders</h3>
                                 <Popover>
-                                    <PopoverTrigger>
-                                        <Ellipsis className="size-4 text-black transition hover:text-gray" />
+                                    <PopoverTrigger asChild>
+                                        <button type="button" className="inline-flex">
+                                            <Ellipsis className="size-4 text-black transition hover:text-gray" />
+                                        </button>
                                     </PopoverTrigger>
                                     <PopoverContent
                                         align="end"
@@ -362,8 +370,10 @@ const Home = () => {
                             <div className="flex items-center justify-between">
                                 <h3 className="leading-tight">Visitor</h3>
                                 <Popover>
-                                    <PopoverTrigger>
-                                        <Ellipsis className="size-4 text-black transition hover:text-gray" />
+                                    <PopoverTrigger asChild>
+                                        <button type="button" className="inline-flex">
+                                            <Ellipsis className="size-4 text-black transition hover:text-gray" />
+                                        </button>
                                     </PopoverTrigger>
                                     <PopoverContent
                                         align="end"
@@ -418,8 +428,10 @@ const Home = () => {
                             <div className="flex items-center justify-between">
                                 <h3 className="leading-tight">Refunded</h3>
                                 <Popover>
-                                    <PopoverTrigger>
-                                        <Ellipsis className="size-4 text-black transition hover:text-gray" />
+                                    <PopoverTrigger asChild>
+                                        <button type="button" className="inline-flex">
+                                            <Ellipsis className="size-4 text-black transition hover:text-gray" />
+                                        </button>
                                     </PopoverTrigger>
                                     <PopoverContent
                                         align="end"

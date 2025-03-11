@@ -12,9 +12,11 @@ const DropdownMenu = DropdownMenuPrimitive.Root
 // Create a custom trigger component with proper ref forwarding
 const DropdownMenuTrigger = React.forwardRef<
     React.ElementRef<typeof DropdownMenuPrimitive.Trigger>,
-    React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Trigger>
+    React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Trigger> & {
+        asChild?: boolean
+    }
 >((props, ref) => (
-    <DropdownMenuPrimitive.Trigger ref={ref} {...props} />
+    <DropdownMenuPrimitive.Trigger ref={ref} asChild={props.asChild ?? true} {...props} />
 ))
 DropdownMenuTrigger.displayName = DropdownMenuPrimitive.Trigger.displayName
 

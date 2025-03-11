@@ -9,17 +9,16 @@ const nextConfig = {
     ],
   },
   experimental: {
-    // Enable new features for Next.js 15
-    serverActions: true,
-    typedRoutes: true,
+    // Set serverActions as an object, not a boolean.
+    serverActions: {},
+    // Remove typedRoutes option since it's not supported with Turbopack.
+    turbo: {},
   },
   logging: {
     fetches: {
-      // Logs detailed information about data fetching
       fullUrl: process.env.NODE_ENV === 'development',
     },
   },
-  // Improve build performance
   poweredByHeader: false,
 };
 
