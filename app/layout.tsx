@@ -33,7 +33,7 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth">
       <body className="bg-gray-400 font-plus-jakarta text-sm/[22px] font-normal text-gray antialiased">
         <AuthGuard>{children}</AuthGuard>
-        <Toaster position="top-right" />
+        <Toaster position="top-center" />
       </body>
     </html>
   )

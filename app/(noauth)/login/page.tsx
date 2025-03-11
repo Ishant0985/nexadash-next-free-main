@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { AtSign } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-
+import toast from 'react-hot-toast'
 // Firebase imports
 import { auth, db } from '@/firebaseClient'
 import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signOut } from 'firebase/auth'
@@ -94,7 +94,7 @@ export default function Login() {
       // Check access
       const hasAccess = await checkUserAccess(user.uid)
       if (hasAccess) {
-        router.push('/admin/dashboard')
+        router.push('/')
       } else {
         setError('Access denied: Only admin and developer can access the admin dashboard.')
         await signOut(auth)
@@ -102,6 +102,7 @@ export default function Login() {
     } catch (error: any) {
       console.error(error)
       setError('Login failed. Please check your credentials.')
+      toast.error("Login failed. Please check your credentials.")
     }
   }
 

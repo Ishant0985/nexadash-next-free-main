@@ -209,7 +209,7 @@ const Header = () => {
           </Link>
           <div className="order-2 lg:order-none">
             <Popover>
-              <PopoverTrigger asChild>
+              <PopoverTrigger asChild={true}>
                 <NotificationButton hasNotifications={!!notifications?.length} />
               </PopoverTrigger>
               <PopoverContent
@@ -295,7 +295,7 @@ const Header = () => {
           </div>
           <div className="order-1 lg:order-none">
             <Popover>
-              <PopoverTrigger asChild>
+              <PopoverTrigger asChild={true}>
                 <div
                   className={cn(
                     buttonVariants({ variant: 'outline-general' }),
@@ -324,7 +324,7 @@ const Header = () => {
           </div>
           <div className="hidden lg:block">
             <DropdownMenu>
-              <DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild={true}>
                 <UserDropdownTrigger 
                   photoURL={currentUser.photoURL} 
                   displayName={currentUser.displayName} 
