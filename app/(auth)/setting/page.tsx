@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LockKeyhole, LockKeyholeOpen, Mail, Phone, User } from 'lucide-react'
 import Image from 'next/image'
-import 'react-quill/dist/quill.snow.css'
 import {
   Select,
   SelectContent,
