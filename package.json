@@ -17,6 +17,7 @@
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-dropdown-menu": "^2.1.6",
     "@radix-ui/react-hover-card": "^1.1.6",
+    "@radix-ui/react-label": "^2.1.2",
     "@radix-ui/react-navigation-menu": "^1.2.5",
     "@radix-ui/react-popover": "^1.1.6",
     "@radix-ui/react-radio-group": "^1.2.3",
@@ -74,6 +75,20 @@
   },
   "overrides": {
     "@types/react": "19.0.10",
-    "@types/react-dom": "19.0.4"
+    "@types/react-dom": "19.0.4",
+    "react-is": "^19.0.0",
+    "@radix-ui/react-compose-refs": "^1.0.1",
+    "@radix-ui/react-context": "^1.0.1",
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@radix-ui/react-primitive": "^1.0.3",
+    "@radix-ui/react-use-callback-ref": "^1.0.1",
+    "@radix-ui/react-use-controllable-state": "^1.0.1",
+    "@radix-ui/react-use-layout-effect": "^1.0.1",
+    "@radix-ui/react-id": "^1.0.1",
+    "@radix-ui/react-direction": "^1.0.1",
+    "@radix-ui/react-collection": "^1.0.3",
+    "@radix-ui/react-dismissable-layer": "^1.0.5",
+    "@radix-ui/react-focus-guards": "^1.0.1",
+    "@radix-ui/react-focus-scope": "^1.0.4"
   }
 }

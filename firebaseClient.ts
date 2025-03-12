@@ -1,7 +1,8 @@
-// firebaseClient.ts
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
+// src/firebaseClient.ts
+import { initializeApp, getApps, getApp } from 'firebase/app'
+import { getAuth } from 'firebase/auth'
+import { getFirestore, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
+import { getMessaging, isSupported } from 'firebase/messaging'
 
 // Firebase client configuration using environment variables
 const firebaseConfig = {
@@ -11,26 +12,39 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+}
 
 // Initialize the Firebase app if not already initialized
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const auth = getAuth(app)
+export const db = getFirestore(app)
 
-// Helper function to get and increment counter
+// Initialize Firebase Messaging (only on client side)
+export let messaging: ReturnType<typeof getMessaging> | null = null
+if (typeof window !== 'undefined') {
+  isSupported().then((supported) => {
+    if (supported) {
+      messaging = getMessaging(app)
+    } else {
+      console.warn('Firebase Messaging is not supported in this browser.')
+    }
+  })
+}
+
+// Helper function to get and increment a counter (unchanged)
 export async function getNextId(counterName: string) {
-  const counterRef = doc(db, 'counters', counterName);
-  const counterDoc = await getDoc(counterRef);
-  
+  const counterRef = doc(db, 'counters', counterName)
+  const counterDoc = await getDoc(counterRef)
+
   if (!counterDoc.exists()) {
-    await setDoc(counterRef, { value: 1 });
-    return 1;
+    await setDoc(counterRef, { value: 1 })
+    return 1
   }
 
-  const currentValue = counterDoc.data().value || 0;
-  const nextValue = currentValue + 1;
-  await updateDoc(counterRef, { value: nextValue });
-  return nextValue;
+  const currentValue = counterDoc.data().value || 0
+  const nextValue = currentValue + 1
+  await updateDoc(counterRef, { value: nextValue })
+  return nextValue
 }
+ 

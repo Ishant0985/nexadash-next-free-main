@@ -33,6 +33,11 @@ import {
     SquareKanban,
     TableProperties,
     X,
+    Wallet,
+    BarChart3,
+    DollarSign,
+    Receipt,
+    CreditCard
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePathname } from 'next/navigation'
@@ -46,7 +51,7 @@ const Sidebar = () => {
         setIsSidebarOpen(!isSidebarOpen)
         const mainContent = document.getElementById('main-content')
         if (mainContent) {
-            mainContent.style.marginLeft = isSidebarOpen ? '260px' : '60px' // Adjust this value as needed
+            mainContent.style.marginLeft = isSidebarOpen ? '260px' : '60px'
         }
     }
 
@@ -75,6 +80,25 @@ const Sidebar = () => {
             )
         ) {
             return 'item-3'
+        } else if (
+            [
+                '/financial-management',
+                '/income-tracking',
+                '/expense-tracking',
+                '/profit-calculations',
+                '/financial-reports',
+            ].includes(pathName)
+        ) {
+            return 'item-finance'
+        } else if (
+            [
+                '/payroll-management',
+                '/staff-salaries',
+                '/payment-status',
+                '/payroll-reports',
+            ].includes(pathName)
+        ) {
+            return 'item-payroll'
         } else if (
             [
                 '/accordion-page',
@@ -116,6 +140,24 @@ const Sidebar = () => {
         }
     }
 
+    // Next.js 15 requires cleanup of event listeners to prevent memory leaks
+    useEffect(() => {
+        const handleRouteChange = () => {
+            if (document?.getElementById('overlay')?.classList?.contains('open')) {
+                toggleSidebarResponsive()
+            }
+        }
+
+        // Clean up the side effect when component unmounts
+        return () => {
+            const mainContent = document.getElementById('main-content')
+            if (mainContent) {
+                mainContent.style.marginLeft = ''
+            }
+        }
+    }, [])
+
+    // Handle pathname changes
     useEffect(() => {
         if (document?.getElementById('overlay')?.classList?.contains('open')) {
             toggleSidebarResponsive()
@@ -153,6 +195,7 @@ const Sidebar = () => {
                             height={34}
                             alt="Logo"
                             className="h-auto w-auto"
+                            priority
                         />
                     </Link>
                     <button type="button" onClick={toggleSidebarResponsive}>
@@ -233,27 +276,78 @@ const Sidebar = () => {
                         </AccordionContent>
                     </AccordionItem>
 
-                    <AccordionItem value="item-payroll" className="p-0 shadow-none">
+                    <AccordionItem value="item-finance" className="p-0 shadow-none">
                         <AccordionTrigger className="nav-link">
-                            <ScrollText className="size-[18px] shrink-0" />
-                            <span>Payroll and Finances</span>
+                            <BarChart3 className="size-[18px] shrink-0" />
+                            <span>Financial Management</span>
                         </AccordionTrigger>
                         <AccordionContent>
                             <ul className="submenu space-y-2 pl-12 pr-5">
                                 <li>
                                     <NavLink
-                                        href="/financial-management"
+                                        href="/income-tracking"
                                         isAccordion={true}
                                     >
-                                        Financial Management
+                                        Income Tracking
                                     </NavLink>
                                 </li>
                                 <li>
                                     <NavLink
-                                        href="/payroll-management"
+                                        href="/expense-tracking"
                                         isAccordion={true}
                                     >
-                                        Payroll Management
+                                        Expense Tracking
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink
+                                        href="/profit-calculations"
+                                        isAccordion={true}
+                                    >
+                                        Profit Calculations
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink
+                                        href="/financial-reports"
+                                        isAccordion={true}
+                                    >
+                                        Visual Reports
+                                    </NavLink>
+                                </li>
+                            </ul>
+                        </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="item-payroll" className="p-0 shadow-none">
+                        <AccordionTrigger className="nav-link">
+                            <DollarSign className="size-[18px] shrink-0" />
+                            <span>Payroll Management</span>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <ul className="submenu space-y-2 pl-12 pr-5">
+                                <li>
+                                    <NavLink
+                                        href="/staff-salaries"
+                                        isAccordion={true}
+                                    >
+                                        Staff Salaries
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink
+                                        href="/payment-status"
+                                        isAccordion={true}
+                                    >
+                                        Payment Status
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink
+                                        href="/payroll-reports"
+                                        isAccordion={true}
+                                    >
+                                        Payroll Reports
                                     </NavLink>
                                 </li>
                             </ul>
@@ -295,7 +389,7 @@ const Sidebar = () => {
 
                     <NavLink
                         href="/chat"
-                        className={`nav-link ${pathName === '/chat' && '!text-black'}`}
+                        className={`nav-link ${pathName === '/chat' ? '!text-black' : ''}`}
                         isProfessionalPlanRoute={false}
                     >
                         <MessageSquareText className="size-[18px] shrink-0" />
@@ -305,23 +399,14 @@ const Sidebar = () => {
                     <NavLink
                         href="/scrumboard"
                         isProfessionalPlanRoute={false}
-                        className={`nav-link ${pathName === '/scrumboard' && '!text-black'}`}
+                        className={`nav-link ${pathName === '/scrumboard' ? '!text-black' : ''}`}
                     >
                         <SquareKanban className="size-[18px] shrink-0" />
                         <span>Scrumboard</span>
                     </NavLink>
                     <AccordionItem value="item-2" className="p-0 shadow-none">
                         <AccordionTrigger
-                            defaultValue={
-                                [
-                                    '/blog-list',
-                                    '/blog-details',
-                                    '/add-blog',
-                                ].includes(pathName)
-                                    ? 'item-2'
-                                    : ''
-                            }
-                            className="nav"
+                            className="nav-link"
                         >
                             <SquareKanban className="size-[18px] shrink-0 -rotate-90" />
                             <span>Blog</span>
@@ -431,7 +516,7 @@ const Sidebar = () => {
 
                     <AccordionItem value="item-8" className="p-0 shadow-none">
                         <AccordionTrigger className="nav-link">
-                            <Users  className="size-[18px] shrink-0" />
+                            <Users className="size-[18px] shrink-0" />
                             <span>Staff</span>
                         </AccordionTrigger>
                         <AccordionContent>
@@ -456,51 +541,6 @@ const Sidebar = () => {
                         </AccordionContent>
                     </AccordionItem>
 
-{/* 
-                    <h3 className="mt-2.5 whitespace-nowrap rounded-lg bg-gray-400 px-5 py-2.5 text-xs/tight font-semibold uppercase text-black">
-                        <span>User Interface</span>
-                        <Minus className="hidden h-4 w-5 text-gray" />
-                    </h3>
-
-                    <NavLink href="/chart" className={`nav-link`}>
-                        <PieChart className="size-[18px] shrink-0" />
-                        <span>Charts</span>
-                    </NavLink>
-
-                    <h3 className="mt-2.5 whitespace-nowrap rounded-lg bg-gray-400 px-5 py-2.5 text-xs/tight font-semibold uppercase text-black">
-                        <span>Tables and Forms</span>
-                        <Minus className="hidden h-4 w-5 text-gray" />
-                    </h3>
-
-                    <NavLink href="/table" className={`nav-link`}>
-                        <TableProperties className="size-[18px] shrink-0" />
-                        <span>Table</span>
-                    </NavLink>
-
-                    <AccordionItem value="item-5" className="p-0 shadow-none">
-                        <AccordionTrigger className="nav-link">
-                            <ClipboardType className="size-[18px] shrink-0" />
-                            <span>Forms</span>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <ul className="submenu space-y-2 pl-12 pr-5">
-                                <li>
-                                    <NavLink
-                                        href="/checkbox"
-                                        isAccordion={true}
-                                    >
-                                        Check Box & Radio
-                                    </NavLink>
-                                </li>
-                                <li>
-                                    <NavLink href="/form" isAccordion={true}>
-                                        Form
-                                    </NavLink>
-                                </li>
-                            </ul>
-                        </AccordionContent>
-                    </AccordionItem> */}
-
                     <h3 className="mt-2.5 whitespace-nowrap rounded-lg bg-gray-400 px-5 py-2.5 text-xs/tight font-semibold uppercase text-black">
                         <span>Pages</span>
                         <Minus className="hidden h-4 w-5 text-gray" />
@@ -508,7 +548,7 @@ const Sidebar = () => {
 
                     <NavLink
                         href="/setting"
-                        className={`nav-link ${pathName === '/setting' && '!text-black'}`}
+                        className={`nav-link ${pathName === '/setting' ? '!text-black' : ''}`}
                     >
                         <Settings className="size-[18px] shrink-0" />
                         <span>Settings</span>
@@ -563,7 +603,7 @@ const Sidebar = () => {
 
                     <NavLink
                         href="/contact-us"
-                        className={`nav-link ${pathName === '/contact-us' && '!text-black'}`}
+                        className={`nav-link ${pathName === '/contact-us' ? '!text-black' : ''}`}
                     >
                         <Phone className="size-[18px] shrink-0" />
                         <span>Contact Us</span>
