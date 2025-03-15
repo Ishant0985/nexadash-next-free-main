@@ -133,7 +133,6 @@ const ManageStaff = () => {
 
   return (
     <div className="relative space-y-4">
-      <div className="flex items-center justify-between">
         <PageHeading heading={'Manage Staff'} button1={
           <Link href="/add-staff">
             <Button variant={'outline'}>
@@ -142,7 +141,6 @@ const ManageStaff = () => {
             </Button>
           </Link>
         } />
-      </div>
 
       <div className="min-h-[calc(100vh_-_160px)] w-full">
         <div className="flex items-center justify-between gap-4 overflow-x-auto rounded-t-lg bg-white px-5 py-[17px]">
