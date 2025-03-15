@@ -134,7 +134,7 @@ const ManageStaff = () => {
   return (
     <div className="relative space-y-4">
         <PageHeading heading={'Manage Staff'} button1={
-          <Link href="/add-staff">
+          <Link href="/staff/create">
             <Button variant={'outline'}>
               <Plus className="mr-2 h-4 w-4" />
               New Staff
