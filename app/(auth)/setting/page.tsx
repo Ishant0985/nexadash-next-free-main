@@ -228,7 +228,7 @@ export default function Setting() {
                             }
                           }}
                         />
-                        <Button type="button" variant={'outline-general'} size={'large'}>
+                        <Button type="button" variant={'outline'} size={'icon'}>
                           Upload
                         </Button>
                       </div>
@@ -298,10 +298,10 @@ export default function Setting() {
                       </div>
                     </div>
                     <div className="!mt-7 flex items-center justify-end gap-4">
-                      <Button variant={'outline-general'} size={'large'} className="text-danger">
+                      <Button variant={'outline'} size={'icon'} className="text-danger">
                         Cancel
                       </Button>
-                      <Button type="submit" variant={'black'} size={'large'}>
+                      <Button type="submit" variant={'outline'} size={'icon'}>
                         Save changes
                       </Button>
                     </div>
@@ -365,10 +365,10 @@ export default function Setting() {
                       />
                     </div>
                     <div className="flex items-center justify-end gap-4">
-                      <Button variant={'outline-general'} size={'large'}>
+                      <Button variant={'outline'} size={'icon'}>
                         Cancel
                       </Button>
-                      <Button type="submit" variant={'black'} size={'large'}>
+                      <Button type="submit" variant={'outline'} size={'icon'}>
                         Update
                       </Button>
                     </div>
@@ -390,7 +390,7 @@ export default function Setting() {
                 <form className="space-y-5 p-4" onSubmit={handlePasswordUpdate}>
                   {!otpSent ? (
                     <div className="flex items-center justify-center">
-                      <Button type="button" variant={'black'} size={'large'} onClick={handleRequestOTP}>
+                      <Button type="button" variant={'outline'} size={'icon'} onClick={handleRequestOTP}>
                         Request OTP
                       </Button>
                     </div>
@@ -427,10 +427,10 @@ export default function Setting() {
                         <p className="text-sm text-danger">{passwordMessage}</p>
                       )}
                       <div className="flex items-center justify-end gap-4">
-                        <Button variant={'outline-general'} size={'large'} className="text-danger">
+                        <Button variant={'outline'} size={'icon'} className="text-danger">
                           Cancel
                         </Button>
-                        <Button type="submit" variant={'black'} size={'large'}>
+                        <Button type="submit" variant={'outline'} size={'icon'}>
                           Update password
                         </Button>
                       </div>

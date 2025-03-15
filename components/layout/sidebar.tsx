@@ -37,7 +37,10 @@ import {
     BarChart3,
     DollarSign,
     Receipt,
-    CreditCard
+    CreditCard,
+    ShieldCheck,
+    Grid2x2Check,
+    DiamondPlus
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePathname } from 'next/navigation'
@@ -276,84 +279,6 @@ const Sidebar = () => {
                         </AccordionContent>
                     </AccordionItem>
 
-                    <AccordionItem value="item-finance" className="p-0 shadow-none">
-                        <AccordionTrigger className="nav-link">
-                            <BarChart3 className="size-[18px] shrink-0" />
-                            <span>Financial Management</span>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <ul className="submenu space-y-2 pl-12 pr-5">
-                                <li>
-                                    <NavLink
-                                        href="/income-tracking"
-                                        isAccordion={true}
-                                    >
-                                        Income Tracking
-                                    </NavLink>
-                                </li>
-                                <li>
-                                    <NavLink
-                                        href="/expense-tracking"
-                                        isAccordion={true}
-                                    >
-                                        Expense Tracking
-                                    </NavLink>
-                                </li>
-                                <li>
-                                    <NavLink
-                                        href="/profit-calculations"
-                                        isAccordion={true}
-                                    >
-                                        Profit Calculations
-                                    </NavLink>
-                                </li>
-                                <li>
-                                    <NavLink
-                                        href="/financial-reports"
-                                        isAccordion={true}
-                                    >
-                                        Visual Reports
-                                    </NavLink>
-                                </li>
-                            </ul>
-                        </AccordionContent>
-                    </AccordionItem>
-
-                    <AccordionItem value="item-payroll" className="p-0 shadow-none">
-                        <AccordionTrigger className="nav-link">
-                            <DollarSign className="size-[18px] shrink-0" />
-                            <span>Payroll Management</span>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <ul className="submenu space-y-2 pl-12 pr-5">
-                                <li>
-                                    <NavLink
-                                        href="/staff-salaries"
-                                        isAccordion={true}
-                                    >
-                                        Staff Salaries
-                                    </NavLink>
-                                </li>
-                                <li>
-                                    <NavLink
-                                        href="/payment-status"
-                                        isAccordion={true}
-                                    >
-                                        Payment Status
-                                    </NavLink>
-                                </li>
-                                <li>
-                                    <NavLink
-                                        href="/payroll-reports"
-                                        isAccordion={true}
-                                    >
-                                        Payroll Reports
-                                    </NavLink>
-                                </li>
-                            </ul>
-                        </AccordionContent>
-                    </AccordionItem>
-
                     <AccordionItem value="item-10" className="p-0 shadow-none">
                         <AccordionTrigger className="nav-link">
                             <HeartHandshake className="size-[18px] shrink-0" />
@@ -381,7 +306,84 @@ const Sidebar = () => {
                         </AccordionContent>
                     </AccordionItem>
 
-                    
+                    <AccordionItem value="item-finance" className="p-0 shadow-none">
+                        <AccordionTrigger className="nav-link">
+                            <BarChart3 className="size-[18px] shrink-0" />
+                            <span>Financials</span>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <ul className="submenu space-y-2 pl-12 pr-5">
+                                <li>
+                                    <NavLink
+                                        href="/finacials/track/income"
+                                        isAccordion={true}
+                                    >
+                                        Income Tracking
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink
+                                        href="/finacials/track/expense"
+                                        isAccordion={true}
+                                    >
+                                        Expense Tracking
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink
+                                        href="/finacials/calculate/profits"
+                                        isAccordion={true}
+                                    >
+                                        Profit Calculations
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink
+                                        href="/finacials/reports/visuals"
+                                        isAccordion={true}
+                                    >
+                                        Visual Reports
+                                    </NavLink>
+                                </li>
+                            </ul>
+                        </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="item-payroll" className="p-0 shadow-none">
+                        <AccordionTrigger className="nav-link">
+                            <DollarSign className="size-[18px] shrink-0" />
+                            <span>Payrolls</span>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <ul className="submenu space-y-2 pl-12 pr-5">
+                                <li>
+                                    <NavLink
+                                        href="/payroll/slaries"
+                                        isAccordion={true}
+                                    >
+                                        Staff Salaries
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink
+                                        href="/payroll/payments/status"
+                                        isAccordion={true}
+                                    >
+                                        Payment Status
+                                    </NavLink>
+                                </li>
+                                <li>
+                                    <NavLink
+                                        href="/payroll/reports"
+                                        isAccordion={true}
+                                    >
+                                        Payroll Reports
+                                    </NavLink>
+                                </li>
+                            </ul>
+                        </AccordionContent>
+                    </AccordionItem>
+
                     <h3 className="mt-2.5 whitespace-nowrap rounded-lg bg-gray-400 px-5 py-2.5 text-xs/tight font-semibold uppercase text-black">
                         <span>Apps</span>
                         <Minus className="hidden h-4 w-5 text-gray" />
@@ -415,7 +417,7 @@ const Sidebar = () => {
                             <ul className="submenu space-y-2 pl-12 pr-5">
                                 <li>
                                     <NavLink
-                                        href="/blog-list"
+                                        href="/blog/list"
                                         isAccordion={true}
                                         isProfessionalPlanRoute={false}
                                     >
@@ -424,16 +426,7 @@ const Sidebar = () => {
                                 </li>
                                 <li>
                                     <NavLink
-                                        href="/blog-details"
-                                        isAccordion={true}
-                                        isProfessionalPlanRoute={false}
-                                    >
-                                        Blog details
-                                    </NavLink>
-                                </li>
-                                <li>
-                                    <NavLink
-                                        href="/add-blog"
+                                        href="/blog/add"
                                         isAccordion={true}
                                         isProfessionalPlanRoute={false}
                                     >
@@ -453,7 +446,7 @@ const Sidebar = () => {
                             <ul className="submenu space-y-2 pl-12 pr-5">
                                 <li>
                                     <NavLink
-                                        href="/invoice"
+                                        href="/invoice/list"
                                         isAccordion={true}
                                         isProfessionalPlanRoute={false}
                                     >
@@ -462,16 +455,7 @@ const Sidebar = () => {
                                 </li>
                                 <li>
                                     <NavLink
-                                        href="/invoice-details"
-                                        isAccordion={true}
-                                        isProfessionalPlanRoute={false}
-                                    >
-                                        Invoice details
-                                    </NavLink>
-                                </li>
-                                <li>
-                                    <NavLink
-                                        href="/create-invoice"
+                                        href="/invoice/create"
                                         isAccordion={true}
                                         isProfessionalPlanRoute={false}
                                     >
@@ -496,7 +480,7 @@ const Sidebar = () => {
                             <ul className="submenu space-y-2 pl-12 pr-5">
                                 <li>
                                     <NavLink
-                                        href="/add-customers"
+                                        href="/customer/add"
                                         isAccordion={true}
                                     >
                                         Add Customers
@@ -504,7 +488,7 @@ const Sidebar = () => {
                                 </li>
                                 <li>
                                     <NavLink
-                                        href="/manage-customers"
+                                        href="/customer/manage"
                                         isAccordion={true}
                                     >
                                         Manage Customers
@@ -523,7 +507,7 @@ const Sidebar = () => {
                             <ul className="submenu space-y-2 pl-12 pr-5">
                                 <li>
                                     <NavLink
-                                        href="/add-staff"
+                                        href="/staff/add"
                                         isAccordion={true}
                                     >
                                         Add Staff
@@ -531,7 +515,7 @@ const Sidebar = () => {
                                 </li>
                                 <li>
                                     <NavLink
-                                        href="/manage-staff"
+                                        href="/staff/manage"
                                         isAccordion={true}
                                     >
                                         Manage Staff
@@ -540,6 +524,91 @@ const Sidebar = () => {
                             </ul>
                         </AccordionContent>
                     </AccordionItem>
+                    {/* ui customization start */}
+                    <h3 className="mt-2.5 whitespace-nowrap rounded-lg bg-gray-400 px-5 py-2.5 text-xs/tight font-semibold uppercase text-black">
+                        <span>UI Customization</span>
+                    </h3>
+                    <Accordion type="single" collapsible>
+                        {/* 1st Accordion: Landing Page */}
+                        <AccordionItem value="landing-page" className="p-0 shadow-none">
+                            <AccordionTrigger className="nav-link">
+                            <Grid2x2Check   className="size-[18px] shrink-0" />
+                                <span>Landing Page</span>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <ul className="submenu space-y-2 pl-12 pr-5">
+                                    <li>
+                                        <NavLink href="/customize/landing/hero" isAccordion={true}>
+                                            Hero Section
+                                        </NavLink>
+                                    </li>
+                                    <li>
+                                        <NavLink href="/customize/landing/features" isAccordion={true}>
+                                            Features
+                                        </NavLink>
+                                    </li>
+                                    <li>
+                                        <NavLink href="/customize/landing/video" isAccordion={true}>
+                                            Video
+                                        </NavLink>
+                                    </li>
+                                    <li>
+                                        <NavLink href="/customize/landing/testimonials" isAccordion={true}>
+                                            Testimonials
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </AccordionContent>
+                        </AccordionItem>
+                        {/* 2nd Accordion: Policies */}
+                        <AccordionItem value="policies" className="p-0 shadow-none">
+                            <AccordionTrigger className="nav-link">
+                                <ShieldCheck  className="size-[18px] shrink-0" />
+                                <span>Policies</span>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <ul className="submenu space-y-2 pl-12 pr-5">
+                                    <li>
+                                        <NavLink href="/customize/tos" isAccordion={true}>
+                                            Terms &amp; Condition's
+                                        </NavLink>
+                                    </li>
+                                    <li>
+                                        <NavLink href="/customize/privacy" isAccordion={true}>
+                                            Privacy &amp; Policy
+                                        </NavLink>
+                                    </li>
+                                    <li>
+                                        <NavLink href="/customize/cookies" isAccordion={true}>
+                                            Cookies Policy
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </AccordionContent>
+                        </AccordionItem>
+                        {/* 3rd Accordion: Other */}
+                        <AccordionItem value="other" className="p-0 shadow-none">
+                            <AccordionTrigger className="nav-link">
+                                <DiamondPlus  className="size-[18px] shrink-0" />
+                                <span>Other</span>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <ul className="submenu space-y-2 pl-12 pr-5">
+                                    <li>
+                                        <NavLink href="/customize/services" isAccordion={true}>
+                                            Service page
+                                        </NavLink>
+                                    </li>
+                                    <li>
+                                        <NavLink href="/customize/about" isAccordion={true}>
+                                            About Us page
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                    {/* ui customization end */}    
 
                     <h3 className="mt-2.5 whitespace-nowrap rounded-lg bg-gray-400 px-5 py-2.5 text-xs/tight font-semibold uppercase text-black">
                         <span>Pages</span>

@@ -494,7 +494,7 @@ const Home = () => {
                                     <PopoverTrigger asChild>
                                         <Button
                                             type="button"
-                                            variant={'outline-general'}
+                                            variant={'outline'}
                                         >
                                             Last 30 Days
                                             <ChevronDown />
@@ -517,7 +517,7 @@ const Home = () => {
                                 </Popover>
                                 <Button
                                     type="button"
-                                    variant={'outline-general'}
+                                    variant={'outline'}
                                 >
                                     <Download />
                                     <span className="hidden sm:block">

@@ -180,7 +180,7 @@ const Table = () => {
                                 <PopoverTrigger asChild>
                                     <Button
                                         type="button"
-                                        variant={'outline-general'}
+                                        variant={'outline'}
                                     >
                                         <CalendarCheck />
                                         {date ? (
@@ -206,7 +206,7 @@ const Table = () => {
                                 <PopoverTrigger asChild>
                                     <Button
                                         type="button"
-                                        variant={'outline-general'}
+                                        variant={'outline'}
                                     >
                                         <CalendarCheck />
                                         {mainDate ? (
@@ -257,7 +257,7 @@ const Table = () => {
                             </SelectContent>
                         </Select>
                         <Link href="/" target="_blank">
-                            <Button variant={'black'}>
+                            <Button variant={'outline'}>
                                 <Plus />
                                 New sales order
                             </Button>
