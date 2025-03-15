@@ -358,7 +358,7 @@ const Sidebar = () => {
                             <ul className="submenu space-y-2 pl-12 pr-5">
                                 <li>
                                     <NavLink
-                                        href="/payroll/slaries"
+                                        href="/payroll/salaries"
                                         isAccordion={true}
                                     >
                                         Staff Salaries

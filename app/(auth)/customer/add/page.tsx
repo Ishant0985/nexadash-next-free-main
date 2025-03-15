@@ -1,4 +1,4 @@
- "use client";
+"use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PageHeading from '@/components/layout/page-heading';
@@ -43,7 +43,7 @@ export default function AddCustomers() {
       const profilePicURL = profilePic ? URL.createObjectURL(profilePic) : "";
       
       const customerData = {
-        customerId: `CUST${String(customerId).padStart(4, '0')}`,
+        customerId: `[C${customerId}]`,
         firstName,
         lastName,
         email,
@@ -175,11 +175,11 @@ export default function AddCustomers() {
                 <Button 
                   type="button" 
                   variant="outline"
-                  onClick={() => router.push('/manage-customers')}
+                  onClick={() => router.push('/customer/manage')}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" variant="black">
+                <Button type="submit" variant="default">
                   Add Customer
                 </Button>
               </div>

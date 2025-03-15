@@ -132,15 +132,16 @@ const ManageStaff = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
       <div className="flex items-center justify-between">
-        <PageHeading heading={'Manage Staff'} />
-        <Link href="/add-staff">
-          <Button variant={'black'}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Staff
-          </Button>
-        </Link>
+        <PageHeading heading={'Manage Staff'} button1={
+          <Link href="/add-staff">
+            <Button variant={'outline'}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Staff
+            </Button>
+          </Link>
+        } />
       </div>
 
       <div className="min-h-[calc(100vh_-_160px)] w-full">
@@ -156,7 +157,7 @@ const ManageStaff = () => {
             <div className="flex items-center gap-2">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button type="button" variant={'outline-general'}>
+                  <Button type="button" variant={'outline'}>
                     <CalendarCheck className="mr-2 h-4 w-4" />
                     {date ? format(date, 'PP') : <span>Start date</span>}
                   </Button>
@@ -168,7 +169,7 @@ const ManageStaff = () => {
               <span className="text-xs font-medium text-gray-700">To</span>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button type="button" variant={'outline-general'}>
+                  <Button type="button" variant={'outline'}>
                     <CalendarCheck className="mr-2 h-4 w-4" />
                     {mainDate ? format(mainDate, 'PP') : <span>End date</span>}
                   </Button>
@@ -208,13 +209,13 @@ const ManageStaff = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex gap-2">
                       <Link href={`/staff/details?id=${staff.id}`}>
-                        <Button variant="outline" size="small">
+                        <Button variant="outline" size="sm">
                           View
                         </Button>
                       </Link>
                       <Button
                         variant="outline"
-                        size="small"
+                        size="sm"
                         onClick={() => {
                           setSelectedStaff(staff);
                           setEditModalOpen(true);
@@ -224,7 +225,7 @@ const ManageStaff = () => {
                       </Button>
                       <Button
                         variant="outline"
-                        size="small"
+                        size="sm"
                         onClick={() => handleDelete(staff.id)}
                         className="text-red-600 hover:text-red-800"
                       >

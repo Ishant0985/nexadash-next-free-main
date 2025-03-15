@@ -45,12 +45,17 @@ import PageHeading from '@/components/layout/page-heading';
 import { db } from '@/firebaseClient';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
 
-// Define types
+// Updated type definitions
 interface Customer {
   id: string;
   name: string;
   email: string;
   phone?: string;
+  country?: string;
+  state?: string;
+  district?: string;
+  city?: string;
+  pincode?: string;
   address?: string;
   [key: string]: any;
 }
@@ -61,6 +66,7 @@ interface Product {
   description?: string;
   price: number;
   category?: string;
+  image?: string;
   availableQuantity?: number;
   [key: string]: any;
 }
@@ -84,7 +90,7 @@ interface InvoiceItem {
   total: number;
 }
 
-// Updated schema: added upiId and paymentStatus with conditional check.
+// Update tax rate validation to accept 1-100
 const invoiceFormSchema = z
   .object({
     customer: z.string().min(1, { message: 'Please select a customer.' }),
@@ -95,7 +101,8 @@ const invoiceFormSchema = z
     paymentStatus: z.enum(['Paid', 'Due'], { message: 'Please select payment status.' }),
     upiId: z.string().optional(),
     notes: z.string().optional(),
-    taxRate: z.number().min(0).max(1),
+    // Now taxRate is a percentage between 1 and 100
+    taxRate: z.number().min(1, { message: 'Tax rate must be at least 1%' }).max(100, { message: 'Tax rate cannot exceed 100%' }),
     items: z.array(
       z.object({
         id: z.string(),
@@ -121,12 +128,19 @@ const invoiceFormSchema = z
 
 type InvoiceFormValues = z.infer<typeof invoiceFormSchema>;
 
-// Generate a unique invoice ID with timestamp and random string
+// Generate invoice id
 const generateInvoiceId = () => {
   const timestamp = Date.now();
   const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `INV-${timestamp}-${randomStr}`;
 };
+
+// Format number as INR
+const formatINR = (amount: number) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+  }).format(amount);
 
 export default function AddInvoicePage() {
   const router = useRouter();
@@ -135,23 +149,37 @@ export default function AddInvoicePage() {
   const [services, setServices] = useState<Service[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // States for controlling the "Add New" modals
+  // Modal states
   const [openAddCustomer, setOpenAddCustomer] = useState(false);
   const [openAddProduct, setOpenAddProduct] = useState(false);
   const [openAddService, setOpenAddService] = useState(false);
 
+  // New customer with extra fields
   const [newCustomer, setNewCustomer] = useState<Omit<Customer, 'id'>>({
     name: '',
     email: '',
     phone: '',
+    country: '',
+    state: '',
+    district: '',
+    city: '',
+    pincode: '',
     address: '',
   });
+
+  // New product with extra fields
   const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({
     name: '',
+    description: '',
     price: 0,
+    category: '',
+    image: '',
   });
+
+  // New service with extra fields
   const [newService, setNewService] = useState<Omit<Service, 'id'>>({
     name: '',
+    description: '',
     cost: 0,
   });
 
@@ -170,7 +198,8 @@ export default function AddInvoicePage() {
       paymentMethod: 'Cash',
       paymentStatus: 'Due',
       upiId: '',
-      taxRate: 0.18,
+      // Default taxRate now 18 (%), not 0.18.
+      taxRate: 18,
       items: [{
         id: crypto.randomUUID(),
         type: 'product',
@@ -186,11 +215,10 @@ export default function AddInvoicePage() {
   const watchItems = watch('items');
   const paymentMethod = watch('paymentMethod');
 
-  // Fetch data on component mount
+  // Fetch customers, products, and services
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch customers
         const customersSnapshot = await getDocs(collection(db, 'customers'));
         const customersData: Customer[] = [];
         customersSnapshot.forEach((doc) => {
@@ -198,7 +226,6 @@ export default function AddInvoicePage() {
         });
         setCustomers(customersData);
 
-        // Fetch products
         const productsSnapshot = await getDocs(collection(db, 'products'));
         const productsData: Product[] = [];
         productsSnapshot.forEach((doc) => {
@@ -206,7 +233,6 @@ export default function AddInvoicePage() {
         });
         setProducts(productsData);
 
-        // Fetch services
         const servicesSnapshot = await getDocs(collection(db, 'services'));
         const servicesData: Service[] = [];
         servicesSnapshot.forEach((doc) => {
@@ -222,7 +248,7 @@ export default function AddInvoicePage() {
     fetchData();
   }, []);
 
-  // Calculate item totals when quantity or price changes
+  // Calculate item totals
   useEffect(() => {
     const updatedItems = watchItems.map(item => ({
       ...item,
@@ -235,7 +261,7 @@ export default function AddInvoicePage() {
     }
   }, [watchItems, setValue]);
 
-  // Add a new invoice item
+  // Item handlers
   const handleAddItem = () => {
     setValue('items', [
       ...watchItems,
@@ -243,14 +269,12 @@ export default function AddInvoicePage() {
     ]);
   };
 
-  // Remove an invoice item by index
   const handleRemoveItem = (index: number) => {
     const updatedItems = [...watchItems];
     updatedItems.splice(index, 1);
     setValue('items', updatedItems);
   };
 
-  // Update an invoice item field
   const handleItemChange = (index: number, field: keyof InvoiceItem, value: any) => {
     const updatedItems = watchItems.map((item, i) =>
       i === index ? { ...item, [field]: value } : item
@@ -261,7 +285,6 @@ export default function AddInvoicePage() {
     setValue('items', updatedItems);
   };
 
-  // Change the type of invoice item
   const handleItemTypeChange = (index: number, type: 'product' | 'service' | 'custom') => {
     const updatedItems = watchItems.map((item, i) =>
       i === index ? {
@@ -278,7 +301,7 @@ export default function AddInvoicePage() {
     setValue('items', updatedItems);
   };
 
-  // Select a product for an invoice item
+  // When a product is selected, load its name, description (if available) and price
   const handleProductSelect = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
@@ -286,7 +309,8 @@ export default function AddInvoicePage() {
       updatedItems[index] = {
         ...updatedItems[index],
         productId,
-        description: product.name,
+        // Load product description if available; fallback to product name.
+        description: product.description || product.name,
         price: product.price,
         total: updatedItems[index].quantity * product.price
       };
@@ -294,7 +318,7 @@ export default function AddInvoicePage() {
     }
   };
 
-  // Select a service for an invoice item
+  // When a service is selected, load its name, description and price automatically
   const handleServiceSelect = (index: number, serviceId: string) => {
     const service = services.find(s => s.id === serviceId);
     if (service) {
@@ -302,7 +326,7 @@ export default function AddInvoicePage() {
       updatedItems[index] = {
         ...updatedItems[index],
         serviceId,
-        description: service.name,
+        description: service.description || service.name,
         price: service.cost,
         total: updatedItems[index].quantity * service.cost
       };
@@ -310,39 +334,26 @@ export default function AddInvoicePage() {
     }
   };
 
-  // Calculate invoice subtotal
-  const calculateSubtotal = () => {
-    return watchItems.reduce((sum, item) => sum + item.total, 0);
-  };
+  // Calculation functions (use INR format for display)
+  const calculateSubtotal = () => watchItems.reduce((sum, item) => sum + item.total, 0);
+  const calculateTaxAmount = () => calculateSubtotal() * (watchTaxRate / 100);
+  const calculateTotalAmount = () => calculateSubtotal() + calculateTaxAmount();
 
-  // Calculate tax amount
-  const calculateTaxAmount = () => {
-    return calculateSubtotal() * watchTaxRate;
-  };
-
-  // Calculate total invoice amount
-  const calculateTotalAmount = () => {
-    return calculateSubtotal() + calculateTaxAmount();
-  };
-
-  // Create a new customer
+  // New Customer Creation with custom id: [C1], [C2], etc.
   const handleCreateNewCustomer = async () => {
     try {
-      if (!newCustomer.name || !newCustomer.email) {
-        toast.error('Customer name and email are required.');
+      if (!newCustomer.name || (!newCustomer.email && !newCustomer.phone)) {
+        toast.error('Customer name and either email or phone are required.');
         return;
       }
-      const docRef = await addDoc(collection(db, 'customers'), newCustomer);
-      const newCustomerWithId: Customer = {
-        id: docRef.id, ...newCustomer,
-        name: '',
-        email: ''
-      };
+      const customId = `[C${customers.length + 1}]`;
+      const customerData = { ...newCustomer, customerId: customId };
+      await addDoc(collection(db, 'customers'), customerData);
+      const newCustomerWithId: Customer = { id: customId, ...newCustomer };
       setCustomers([...customers, newCustomerWithId]);
-      setNewCustomer({ name: '', email: '', phone: '', address: '' });
+      setNewCustomer({ name: '', email: '', phone: '', country: '', state: '', district: '', city: '', pincode: '', address: '' });
       toast.success('Customer added successfully!');
-      // Auto-select the new customer
-      setValue('customer', docRef.id);
+      setValue('customer', customId);
       setOpenAddCustomer(false);
     } catch (error) {
       console.error('Error adding customer:', error);
@@ -350,21 +361,19 @@ export default function AddInvoicePage() {
     }
   };
 
-  // Create a new product
+  // New Product Creation with custom id: [P1], [P2], etc.
   const handleCreateNewProduct = async () => {
     try {
       if (!newProduct.name || newProduct.price <= 0) {
         toast.error('Product name and a valid price are required.');
         return;
       }
-      const docRef = await addDoc(collection(db, 'products'), newProduct);
-      const newProductWithId: Product = {
-        id: docRef.id, ...newProduct, description: '',
-        name: '',
-        price: 0
-      };
+      const customId = `[P${products.length + 1}]`;
+      const productData = { ...newProduct, productId: customId };
+      await addDoc(collection(db, 'products'), productData);
+      const newProductWithId: Product = { id: customId, ...newProduct };
       setProducts([...products, newProductWithId]);
-      setNewProduct({ name: '', price: 0 });
+      setNewProduct({ name: '', description: '', price: 0, category: '', image: '' });
       toast.success('Product added successfully!');
       setOpenAddProduct(false);
     } catch (error) {
@@ -373,21 +382,19 @@ export default function AddInvoicePage() {
     }
   };
 
-  // Create a new service
+  // New Service Creation with custom id: [S1], [S2], etc.
   const handleCreateNewService = async () => {
     try {
       if (!newService.name || newService.cost <= 0) {
         toast.error('Service name and a valid cost are required.');
         return;
       }
-      const docRef = await addDoc(collection(db, 'services'), newService);
-      const newServiceWithId: Service = {
-        id: docRef.id, ...newService, description: '',
-        name: '',
-        cost: 0
-      };
+      const customId = `[S${services.length + 1}]`;
+      const serviceData = { ...newService, serviceId: customId };
+      await addDoc(collection(db, 'services'), serviceData);
+      const newServiceWithId: Service = { id: customId, ...newService };
       setServices([...services, newServiceWithId]);
-      setNewService({ name: '', cost: 0 });
+      setNewService({ name: '', description: '', cost: 0 });
       toast.success('Service added successfully!');
       setOpenAddService(false);
     } catch (error) {
@@ -396,7 +403,7 @@ export default function AddInvoicePage() {
     }
   };
 
-  // Submit the invoice form
+  // Invoice submission
   const onSubmit = async (data: InvoiceFormValues) => {
     setIsSubmitting(true);
     try {
@@ -420,9 +427,7 @@ export default function AddInvoicePage() {
   };
 
   // Utility: format date for input type="date"
-  const formatDateForInput = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
+  const formatDateForInput = (date: Date) => date.toISOString().split('T')[0];
 
   return (
     <div className="relative space-y-4">
@@ -465,8 +470,10 @@ export default function AddInvoicePage() {
                 <Input
                   id="taxRate"
                   type="number"
+                  min={1}
+                  max={100}
                   {...register('taxRate', { valueAsNumber: true })}
-                  onChange={(e) => setValue('taxRate', parseFloat(e.target.value) / 100)}
+                  onChange={(e) => setValue('taxRate', parseFloat(e.target.value))}
                 />
                 {errors.taxRate && <p className="text-red-500 text-sm">{errors.taxRate.message}</p>}
               </div>
@@ -488,7 +495,9 @@ export default function AddInvoicePage() {
                     </SelectTrigger>
                     <SelectContent>
                       {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {(customer.email || customer.phone) + ' - ' + customer.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -501,13 +510,13 @@ export default function AddInvoicePage() {
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Add New Customer</AlertDialogTitle>
-                        <AlertDialogDescription>Enter the details of the new customer.</AlertDialogDescription>
+                        <AlertDialogDescription>
+                          Enter the customer details: Name, (Phone or Email), Country, State, District, City, Pincode.
+                        </AlertDialogDescription>
                       </AlertDialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerName" className="text-right">
-                            Name
-                          </Label>
+                          <Label htmlFor="newCustomerName" className="text-right">Name</Label>
                           <Input
                             id="newCustomerName"
                             className="col-span-3"
@@ -516,37 +525,59 @@ export default function AddInvoicePage() {
                           />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerEmail" className="text-right">
-                            Email
-                          </Label>
+                          <Label htmlFor="newCustomerContact" className="text-right">Phone/Email</Label>
                           <Input
-                            id="newCustomerEmail"
+                            id="newCustomerContact"
                             className="col-span-3"
-                            type="email"
-                            value={newCustomer.email}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                            value={newCustomer.email || newCustomer.phone}
+                            onChange={(e) =>
+                              setNewCustomer({ ...newCustomer, email: e.target.value, phone: e.target.value })
+                            }
                           />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerPhone" className="text-right">
-                            Phone
-                          </Label>
+                          <Label htmlFor="newCustomerCountry" className="text-right">Country</Label>
                           <Input
-                            id="newCustomerPhone"
+                            id="newCustomerCountry"
                             className="col-span-3"
-                            value={newCustomer.phone}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                            value={newCustomer.country}
+                            onChange={(e) => setNewCustomer({ ...newCustomer, country: e.target.value })}
                           />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerAddress" className="text-right">
-                            Address
-                          </Label>
-                          <Textarea
-                            id="newCustomerAddress"
+                          <Label htmlFor="newCustomerState" className="text-right">State</Label>
+                          <Input
+                            id="newCustomerState"
                             className="col-span-3"
-                            value={newCustomer.address}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
+                            value={newCustomer.state}
+                            onChange={(e) => setNewCustomer({ ...newCustomer, state: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="newCustomerDistrict" className="text-right">District</Label>
+                          <Input
+                            id="newCustomerDistrict"
+                            className="col-span-3"
+                            value={newCustomer.district}
+                            onChange={(e) => setNewCustomer({ ...newCustomer, district: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="newCustomerCity" className="text-right">City</Label>
+                          <Input
+                            id="newCustomerCity"
+                            className="col-span-3"
+                            value={newCustomer.city}
+                            onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="newCustomerPincode" className="text-right">Pincode</Label>
+                          <Input
+                            id="newCustomerPincode"
+                            className="col-span-3"
+                            value={newCustomer.pincode}
+                            onChange={(e) => setNewCustomer({ ...newCustomer, pincode: e.target.value })}
                           />
                         </div>
                       </div>
@@ -573,8 +604,6 @@ export default function AddInvoicePage() {
                   </SelectContent>
                 </Select>
                 {errors.paymentMethod && <p className="text-red-500 text-sm">{errors.paymentMethod.message}</p>}
-
-                {/* If Upi is selected, ask for UPI id */}
                 {paymentMethod === 'Upi' && (
                   <div className="mt-2">
                     <Label htmlFor="upiId">UPI ID / Number</Label>
@@ -582,8 +611,6 @@ export default function AddInvoicePage() {
                     {errors.upiId && <p className="text-red-500 text-sm">{errors.upiId.message}</p>}
                   </div>
                 )}
-
-                {/* Payment status selection */}
                 <div className="mt-4">
                   <Label htmlFor="paymentStatus">Payment Status</Label>
                   <Select onValueChange={(value) => setValue('paymentStatus', value as "Paid" | "Due")} defaultValue="Due">
@@ -614,8 +641,8 @@ export default function AddInvoicePage() {
                       <TableHead>Type</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Qty</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>Price (INR)</TableHead>
+                      <TableHead className="text-right">Total (INR)</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -643,33 +670,41 @@ export default function AddInvoicePage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   {products.map((product) => (
-                                    <SelectItem key={product.id} value={product.id}>{product.name}</SelectItem>
+                                    <SelectItem key={product.id} value={product.id}>
+                                      {product.name}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
                               <AlertDialog open={openAddProduct} onOpenChange={setOpenAddProduct}>
                                 <AlertDialogTrigger asChild>
-                                  <Button type="button" variant="outline" size="sm">
-                                    Add New
-                                  </Button>
+                                  <Button type="button" variant="outline" size="sm">Add New</Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Add New Product</AlertDialogTitle>
-                                    <AlertDialogDescription>Enter the details of the new product.</AlertDialogDescription>
+                                    <AlertDialogDescription>Enter product details.</AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <div className="grid gap-4 py-4">
                                     <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newProductName" className="text-right">
-                                        Name
-                                      </Label>
+                                      <Label htmlFor="newProductName" className="text-right">Name</Label>
                                       <Input id="newProductName" className="col-span-3" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} />
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newProductPrice" className="text-right">
-                                        Price
-                                      </Label>
+                                      <Label htmlFor="newProductDescription" className="text-right">Description</Label>
+                                      <Textarea id="newProductDescription" className="col-span-3" value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label htmlFor="newProductPrice" className="text-right">Price (INR)</Label>
                                       <Input id="newProductPrice" className="col-span-3" type="number" value={newProduct.price} onChange={(e) => setNewProduct({ ...newProduct, price: parseFloat(e.target.value) })} />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label htmlFor="newProductCategory" className="text-right">Category</Label>
+                                      <Input id="newProductCategory" className="col-span-3" value={newProduct.category} onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })} />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label htmlFor="newProductImage" className="text-right">Image (optional)</Label>
+                                      <Input id="newProductImage" className="col-span-3" placeholder="Image URL" value={newProduct.image} onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })} />
                                     </div>
                                   </div>
                                   <AlertDialogFooter>
@@ -688,32 +723,32 @@ export default function AddInvoicePage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   {services.map((service) => (
-                                    <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                                    <SelectItem key={service.id} value={service.id}>
+                                      {service.name}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
                               <AlertDialog open={openAddService} onOpenChange={setOpenAddService}>
                                 <AlertDialogTrigger asChild>
-                                  <Button type="button" variant="outline" size="sm">
-                                    Add New
-                                  </Button>
+                                  <Button type="button" variant="outline" size="sm">Add New</Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Add New Service</AlertDialogTitle>
-                                    <AlertDialogDescription>Enter the details of the new service.</AlertDialogDescription>
+                                    <AlertDialogDescription>Enter service details.</AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <div className="grid gap-4 py-4">
                                     <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newServiceName" className="text-right">
-                                        Name
-                                      </Label>
+                                      <Label htmlFor="newServiceName" className="text-right">Name</Label>
                                       <Input id="newServiceName" className="col-span-3" value={newService.name} onChange={(e) => setNewService({ ...newService, name: e.target.value })} />
                                     </div>
                                     <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newServiceCost" className="text-right">
-                                        Cost
-                                      </Label>
+                                      <Label htmlFor="newServiceDescription" className="text-right">Description</Label>
+                                      <Textarea id="newServiceDescription" className="col-span-3" value={newService.description} onChange={(e) => setNewService({ ...newService, description: e.target.value })} />
+                                    </div>
+                                    <div className="grid grid-cols-4 items-center gap-4">
+                                      <Label htmlFor="newServiceCost" className="text-right">Price (INR)</Label>
                                       <Input id="newServiceCost" className="col-span-3" type="number" value={newService.cost} onChange={(e) => setNewService({ ...newService, cost: parseFloat(e.target.value) })} />
                                     </div>
                                   </div>
@@ -726,37 +761,25 @@ export default function AddInvoicePage() {
                             </div>
                           )}
                           {item.type === 'custom' && (
-                            <Input
-                              type="text"
-                              value={item.description}
-                              onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                            />
+                            <Input type="text" value={item.description} onChange={(e) => handleItemChange(index, 'description', e.target.value)} />
                           )}
                           {errors.items?.[index]?.description && (
                             <p className="text-red-500 text-xs">{errors.items[index].description?.message}</p>
                           )}
                         </TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))}
-                          />
+                          <Input type="number" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))} />
                           {errors.items?.[index]?.quantity && (
                             <p className="text-red-500 text-xs">{errors.items[index].quantity?.message}</p>
                           )}
                         </TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            value={item.price}
-                            onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value))}
-                          />
+                          <Input type="number" value={item.price} onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value))} />
                           {errors.items?.[index]?.price && (
                             <p className="text-red-500 text-xs">{errors.items[index].price?.message}</p>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">${item.total.toFixed(2)}</TableCell>
+                        <TableCell className="text-right"> {formatINR(item.total)} </TableCell>
                         <TableCell>
                           <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveItem(index)}>
                             Remove
@@ -783,9 +806,7 @@ export default function AddInvoicePage() {
           </Card>
 
           <div className="flex justify-end space-x-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Saving..." : "Save Invoice"}
             </Button>
@@ -794,9 +815,9 @@ export default function AddInvoicePage() {
         <Separator className="my-6" />
         <div>
           <h3 className="text-lg font-semibold mb-2">Invoice Summary</h3>
-          <p>Subtotal: ${calculateSubtotal().toFixed(2)}</p>
-          <p>Tax ({watchTaxRate * 100}%): ${calculateTaxAmount().toFixed(2)}</p>
-          <p className="font-semibold">Total: ${calculateTotalAmount().toFixed(2)}</p>
+          <p>Subtotal: {formatINR(calculateSubtotal())}</p>
+          <p>Tax ({watchTaxRate}%): {formatINR(calculateTaxAmount())}</p>
+          <p className="font-semibold">Total: {formatINR(calculateTotalAmount())}</p>
         </div>
       </div>
     </div>

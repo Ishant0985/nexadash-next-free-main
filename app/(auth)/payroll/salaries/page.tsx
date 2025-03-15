@@ -1,4 +1,4 @@
- 'use client'
+'use client'
 import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DatePicker } from '@/components/ui/date-picker'
+import PageHeading from '@/components/layout/page-heading'
 import { toast } from 'sonner'
-import { PlusCircle, Search, Download, Users, DollarSign, Calendar } from 'lucide-react'
+import { PlusCircle, Search, Download, Users, Calendar } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { db } from '@/firebaseClient'
 import { collection, addDoc, getDocs, query, orderBy, Timestamp, where } from 'firebase/firestore'
@@ -66,14 +67,14 @@ export default function StaffSalariesPage() {
     try {
       setLoading(true)
       let q = query(collection(db, 'staff-salaries'), orderBy('createdAt', 'desc'))
-      
+
       if (departmentFilter !== 'all') {
         q = query(q, where('department', '==', departmentFilter))
       }
-      
+
       const querySnapshot = await getDocs(q)
       const records: StaffSalary[] = []
-      
+
       querySnapshot.forEach((doc) => {
         const data = doc.data()
         records.push({
@@ -90,7 +91,7 @@ export default function StaffSalariesPage() {
           createdAt: data.createdAt.toDate()
         })
       })
-      
+
       setSalaries(records)
     } catch (error) {
       console.error('Error fetching staff salaries:', error)
@@ -102,12 +103,12 @@ export default function StaffSalariesPage() {
 
   const handleAddSalary = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!employeeId || !employeeName || !position || !department || !baseSalary) {
       toast.error('Please fill in all required fields')
       return
     }
-    
+
     try {
       const numericBaseSalary = parseFloat(baseSalary)
       const numericHousingAllowance = parseFloat(housingAllowance) || 0
@@ -118,18 +119,18 @@ export default function StaffSalariesPage() {
       const numericInsuranceDeduction = parseFloat(insuranceDeduction) || 0
       const numericPensionDeduction = parseFloat(pensionDeduction) || 0
       const numericOtherDeduction = parseFloat(otherDeduction) || 0
-      
+
       if (isNaN(numericBaseSalary) || numericBaseSalary <= 0) {
         toast.error('Please enter a valid base salary')
         return
       }
-      
-      const totalAllowances = numericHousingAllowance + numericTransportAllowance + 
-                             numericMedicalAllowance + numericOtherAllowance
-      const totalDeductions = numericTaxDeduction + numericInsuranceDeduction + 
-                             numericPensionDeduction + numericOtherDeduction
+
+      const totalAllowances = numericHousingAllowance + numericTransportAllowance +
+        numericMedicalAllowance + numericOtherAllowance
+      const totalDeductions = numericTaxDeduction + numericInsuranceDeduction +
+        numericPensionDeduction + numericOtherDeduction
       const netSalary = numericBaseSalary + totalAllowances - totalDeductions
-      
+
       const newRecord = {
         employeeId,
         employeeName,
@@ -152,10 +153,10 @@ export default function StaffSalariesPage() {
         effectiveDate: Timestamp.fromDate(effectiveDate),
         createdAt: Timestamp.fromDate(new Date())
       }
-      
+
       await addDoc(collection(db, 'staff-salaries'), newRecord)
       toast.success('Staff salary record added successfully')
-      
+
       // Reset form
       setEmployeeId('')
       setEmployeeName('')
@@ -172,7 +173,7 @@ export default function StaffSalariesPage() {
       setOtherDeduction('')
       setEffectiveDate(new Date())
       setShowForm(false)
-      
+
       // Refresh the list
       fetchStaffSalaries()
     } catch (error) {
@@ -181,7 +182,7 @@ export default function StaffSalariesPage() {
     }
   }
 
-  const filteredSalaries = salaries.filter(salary => 
+  const filteredSalaries = salaries.filter(salary =>
     salary.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
     salary.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     salary.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -237,7 +238,7 @@ export default function StaffSalariesPage() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     const timestamp = new Date().toISOString().split('T')[0]
-    
+
     link.setAttribute('href', url)
     link.setAttribute('download', `staff-salaries-${timestamp}.csv`)
     link.style.visibility = 'hidden'
@@ -247,35 +248,32 @@ export default function StaffSalariesPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="relative space-y-4">
+      <PageHeading heading="Invoice" button1={
+        <Button
+          variant="outline"
+          onClick={handleExportCSV}
+          disabled={filteredSalaries.length === 0}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Export CSV
+        </Button>
+      }
+        button2={
+          <Button onClick={() => setShowForm(!showForm)}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Salary
+          </Button>
+        }
+      />
+
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Staff Salaries</h1>
-            <p className="text-gray-500">Manage staff salary information</p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline"
-              onClick={handleExportCSV}
-              disabled={filteredSalaries.length === 0}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
-            <Button onClick={() => setShowForm(!showForm)}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Salary
-            </Button>
-          </div>
-        </div>
-        
         {showForm && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Add New Salary Record</CardTitle>
+              <CardTitle className='py-4 px-6 text-lg font-semibold'>Add New Salary Record</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className='p-6'>
               <form onSubmit={handleAddSalary} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -444,7 +442,7 @@ export default function StaffSalariesPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" type="button" onClick={() => setShowForm(false)}>
                     Cancel
@@ -455,11 +453,11 @@ export default function StaffSalariesPage() {
             </CardContent>
           </Card>
         )}
-        
+
         <Card>
           <CardHeader>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <CardTitle>Salary Records</CardTitle>
+              <CardTitle className='py-4 px-6 text-lg font-semibold'>Salary Records</CardTitle>
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <div className="relative w-full sm:w-64">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
@@ -487,7 +485,7 @@ export default function StaffSalariesPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className='p-6'>
             {loading ? (
               <div className="flex justify-center items-center h-40">
                 <p>Loading salary records...</p>
