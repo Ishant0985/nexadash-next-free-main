@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { doc, getDoc, deleteDoc } from 'firebase/firestore';
@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Trash2, CalendarIcon, User, Tag, MapPin } from 'lucide-react';
+import Image from 'next/image';
 
 interface Author {
   name: string;
@@ -62,12 +63,12 @@ const PreviewBlogPage = () => {
 
   // Check if user is authenticated
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
       setIsAuthChecking(false);
       
       // If user is not authenticated, redirect to login
-      if (!currentUser) {
+      if (!user) {
         router.push('/login');
       } else {
         fetchBlogData();
@@ -76,20 +77,16 @@ const PreviewBlogPage = () => {
     return () => unsubscribe();
   }, [blogId, router]);
 
-  const fetchBlogData = async () => {
+  const fetchBlogData = useCallback(async () => {
     if (!blogId) return;
-    
     try {
       setLoading(true);
       const blogRef = doc(db, 'blogs', blogId);
       const blogSnap = await getDoc(blogRef);
       
       if (blogSnap.exists()) {
-        const blogData = blogSnap.data();
-        setBlog({
-          id: blogId,
-          ...blogData,
-        } as BlogData);
+        const blogData = { id: blogSnap.id, ...blogSnap.data() } as BlogData;
+        setBlog(blogData);
       } else {
         toast.error('Blog post not found');
         router.push('/blog/list');
@@ -100,7 +97,7 @@ const PreviewBlogPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [blogId, router]);
 
   const handleEditBlog = () => {
     router.push(`/blog/edit/${blogId}`);
@@ -170,7 +167,7 @@ const PreviewBlogPage = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <h2 className="text-2xl font-bold mb-4">Blog post not found</h2>
-        <p className="text-gray-500 mb-6">The blog post you're looking for doesn't exist or has been removed.</p>
+        <p className="text-gray-500 mb-6">The blog post you&apos;re looking for doesn&apos;t exist or has been removed.</p>
         <Link href="/blog/list">
           <Button>Back to Blog List</Button>
         </Link>
@@ -215,11 +212,13 @@ const PreviewBlogPage = () => {
       <Card className="overflow-hidden">
         {/* Blog featured image */}
         {blog.image && (
-          <div className="w-full h-72 md:h-96 overflow-hidden">
-            <img 
+          <div className="w-full h-72 md:h-96 overflow-hidden relative">
+            <Image 
               src={blog.image} 
               alt={blog.title} 
               className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 768px) 100vw, 1200px"
             />
           </div>
         )}
@@ -307,7 +306,7 @@ const PreviewBlogPage = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the blog "{blog.title}". 
+              This will permanently delete the blog &quot;{blog.title}&quot;. 
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

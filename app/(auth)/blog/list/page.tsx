@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import PageHeading from '@/components/layout/page-heading'
 import { Eye, Users, Clock, MoreVertical, Edit, Trash2 } from "lucide-react";
+import Image from 'next/image';
 
 interface Author {
   name: string;
@@ -303,10 +304,12 @@ const BlogListPage = () => {
                 {filteredBlogs.map((blog) => (
                   <Card key={blog.id} className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleBlogClick(blog)}>
                     <div className="h-48 overflow-hidden relative">
-                      <img
+                      <Image
                         src={blog.image || 'https://via.placeholder.com/400x200?text=No+Image'}
                         alt={blog.title}
                         className="w-full h-full object-cover"
+                        width={400}
+                        height={200}
                       />
                       <div className="absolute top-2 right-2 flex items-center gap-2">
                         {(blog.status === 'scheduled' || blog.scheduledPublish) && (
@@ -388,7 +391,7 @@ const BlogListPage = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the blog "{blogToDelete?.title}".
+              This will permanently delete the blog &quot;{blogToDelete?.title}&quot;.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

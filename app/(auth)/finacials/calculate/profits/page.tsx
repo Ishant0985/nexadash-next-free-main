@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -20,6 +20,21 @@ interface ProfitAnalysis {
   expensesByCategory: Record<string, number>
 }
 
+interface IncomeData {
+  id: string
+  amount: number
+  date: any
+  [key: string]: any
+}
+
+interface ExpenseData {
+  id: string
+  amount: number
+  category: string
+  date: any
+  [key: string]: any
+}
+
 export default function ProfitCalculationsPage() {
   const [loading, setLoading] = useState(true)
   const [analysis, setAnalysis] = useState<ProfitAnalysis | null>(null)
@@ -27,11 +42,7 @@ export default function ProfitCalculationsPage() {
   const [endDate, setEndDate] = useState<Date>(new Date())
   const [analysisType, setAnalysisType] = useState('monthly')
 
-  useEffect(() => {
-    fetchProfitAnalysis()
-  }, [startDate, endDate])
-
-  const fetchProfitAnalysis = async () => {
+  const fetchProfitAnalysis = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -42,8 +53,8 @@ export default function ProfitCalculationsPage() {
         where('date', '<=', Timestamp.fromDate(endDate))
       )
       const incomeSnapshot = await getDocs(incomeQuery)
-      const totalIncome = incomeSnapshot.docs.reduce((sum, doc) => sum + doc.data().amount, 0)
-
+      const incomeData = incomeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as IncomeData[]
+      
       // Fetch expenses
       const expensesQuery = query(
         collection(db, 'expenses'),
@@ -51,32 +62,29 @@ export default function ProfitCalculationsPage() {
         where('date', '<=', Timestamp.fromDate(endDate))
       )
       const expensesSnapshot = await getDocs(expensesQuery)
+      const expensesData = expensesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as ExpenseData[]
+      
+      // Calculate gross profit
+      const totalIncome = incomeData.reduce((sum, income) => sum + (income.amount || 0), 0)
       
       // Calculate expenses by category
       const expensesByCategory: Record<string, number> = {}
       let totalExpenses = 0
-      let operatingExpenses = 0
-
-      expensesSnapshot.docs.forEach(doc => {
-        const data = doc.data()
-        const amount = data.amount
-        const category = data.category
+      
+      expensesData.forEach(expense => {
+        const category = expense.category || 'Uncategorized'
+        const amount = expense.amount || 0
         
-        // Sum up expenses by category
         expensesByCategory[category] = (expensesByCategory[category] || 0) + amount
-        
-        // Calculate operating expenses (excluding non-operating categories)
-        if (!['taxes', 'interest', 'depreciation'].includes(category)) {
-          operatingExpenses += amount
-        }
-        
         totalExpenses += amount
       })
-
-      const grossProfit = totalIncome - totalExpenses
+      
+      // Calculate profit metrics
+      const grossProfit = totalIncome
+      const operatingExpenses = totalExpenses
       const netProfit = grossProfit - operatingExpenses
-      const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0
-
+      const profitMargin = grossProfit > 0 ? (netProfit / grossProfit) * 100 : 0
+      
       setAnalysis({
         grossProfit,
         operatingExpenses,
@@ -87,12 +95,15 @@ export default function ProfitCalculationsPage() {
         expensesByCategory
       })
     } catch (error) {
-      console.error('Error fetching profit analysis:', error)
-      toast.error('Failed to load profit analysis')
+      console.error('Error calculating profit analysis:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [startDate, endDate])
+
+  useEffect(() => {
+    fetchProfitAnalysis()
+  }, [fetchProfitAnalysis])
 
   const handleExportAnalysis = () => {
     if (!analysis) return

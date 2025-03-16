@@ -26,6 +26,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import Image from 'next/image';
+
 const AddBlogPage = () => {
   const router = useRouter();
   const [title, setTitle] = useState('');
@@ -219,10 +221,12 @@ const AddBlogPage = () => {
           <CardContent className="p-0">
             {imageUrl && (
               <div className="w-full h-64 relative">
-                <img 
+                <Image 
                   src={imageUrl} 
                   alt={title} 
-                  className="w-full h-full object-cover rounded-t-lg" 
+                  className="w-full h-full object-cover rounded-t-lg"
+                  fill
+                  sizes="100vw"
                 />
               </div>
             )}
@@ -437,10 +441,12 @@ const AddBlogPage = () => {
                   
                   {imageUrl ? (
                     <div className="relative w-full">
-                      <img
+                      <Image
                         src={imageUrl}
                         alt="Featured"
                         className="w-full h-40 object-cover rounded-md"
+                        width={400}
+                        height={160}
                       />
                       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                         <Button 
