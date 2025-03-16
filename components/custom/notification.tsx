@@ -134,10 +134,10 @@ export default function Notification() {
                             <span>New item</span>
                         </div>
                         <div className="flex gap-4">
-                            <Button type="button" variant={'outline-general'}>
+                            <Button type="button" variant="outline">
                                 Deny
                             </Button>
-                            <Button type="button" variant={'black'}>
+                            <Button type="button" variant="default">
                                 Approve
                             </Button>
                         </div>
