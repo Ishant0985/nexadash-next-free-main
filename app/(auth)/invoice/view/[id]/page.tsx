@@ -134,7 +134,7 @@ interface Params {
   id: string;
 }
 
-export default function InvoiceViewPage({ params }: { params: Params }) {
+export default function InvoiceViewPage({ params }: { params: { id: string } }) {
   // Get the invoice ID from params
   const invoiceId: string = params.id;
   

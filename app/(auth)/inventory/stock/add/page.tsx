@@ -17,6 +17,7 @@ import { collection, getDocs, addDoc, query, orderBy, limit, where, getCountFrom
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import toast from 'react-hot-toast';
+import Image from 'next/image';
 
 type Category = {
     id: string;
@@ -472,10 +473,12 @@ const AddStock = () => {
                                     <Label>Product Image</Label>
                                     {productImageUrl ? (
                                         <div className="relative w-40 h-40 border rounded-md overflow-hidden">
-                                            <img
+                                            <Image
                                                 src={productImageUrl}
                                                 alt="Product preview"
-                                                className="w-full h-full object-cover"
+                                                className="object-cover"
+                                                fill
+                                                sizes="160px"
                                             />
                                             <Button
                                                 size="icon"
@@ -607,10 +610,12 @@ const AddStock = () => {
                                     <Label>Service Image</Label>
                                     {serviceImageUrl ? (
                                         <div className="relative w-40 h-40 border rounded-md overflow-hidden">
-                                            <img
+                                            <Image
                                                 src={serviceImageUrl}
                                                 alt="Service preview"
-                                                className="w-full h-full object-cover"
+                                                className="object-cover"
+                                                fill
+                                                sizes="160px"
                                             />
                                             <Button
                                                 size="icon"
