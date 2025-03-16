@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,11 +36,7 @@ export default function IncomeTrackingPage() {
   const [showForm, setShowForm] = useState(false)
   const [filterPeriod, setFilterPeriod] = useState('all')
 
-  useEffect(() => {
-    fetchIncomeRecords()
-  }, [filterPeriod])
-
-  const fetchIncomeRecords = async () => {
+  const fetchIncomeRecords = useCallback(async () => {
     try {
       setLoading(true)
       let q = query(collection(db, 'income'), orderBy('date', 'desc'))
@@ -90,7 +86,11 @@ export default function IncomeTrackingPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filterPeriod])
+
+  useEffect(() => {
+    fetchIncomeRecords()
+  }, [fetchIncomeRecords])
 
   const handleAddIncome = async (e: React.FormEvent) => {
     e.preventDefault()

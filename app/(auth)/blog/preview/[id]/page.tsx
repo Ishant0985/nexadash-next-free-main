@@ -61,22 +61,6 @@ const PreviewBlogPage = () => {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  // Check if user is authenticated
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setIsAuthChecking(false);
-      
-      // If user is not authenticated, redirect to login
-      if (!user) {
-        router.push('/login');
-      } else {
-        fetchBlogData();
-      }
-    });
-    return () => unsubscribe();
-  }, [blogId, router]);
-
   const fetchBlogData = useCallback(async () => {
     if (!blogId) return;
     try {
@@ -98,6 +82,22 @@ const PreviewBlogPage = () => {
       setLoading(false);
     }
   }, [blogId, router]);
+
+  // Check if user is authenticated
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setIsAuthChecking(false);
+      
+      // If user is not authenticated, redirect to login
+      if (!user) {
+        router.push('/login');
+      } else {
+        fetchBlogData();
+      }
+    });
+    return () => unsubscribe();
+  }, [blogId, router, fetchBlogData]);
 
   const handleEditBlog = () => {
     router.push(`/blog/edit/${blogId}`);

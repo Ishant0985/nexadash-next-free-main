@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,11 +38,7 @@ export default function ExpenseTrackingPage() {
   const [showForm, setShowForm] = useState(false)
   const [filterPeriod, setFilterPeriod] = useState('all')
 
-  useEffect(() => {
-    fetchExpenseRecords()
-  }, [filterPeriod])
-
-  const fetchExpenseRecords = async () => {
+  const fetchExpenseRecords = useCallback(async () => {
     try {
       setLoading(true)
       let q = query(collection(db, 'expenses'), orderBy('date', 'desc'))
@@ -89,11 +85,15 @@ export default function ExpenseTrackingPage() {
       setExpenseRecords(records)
     } catch (error) {
       console.error('Error fetching expense records:', error)
-      toast.error('Failed to load expense records')
+      toast.error('Failed to load expenses')
     } finally {
       setLoading(false)
     }
-  }
+  }, [filterPeriod])
+
+  useEffect(() => {
+    fetchExpenseRecords()
+  }, [fetchExpenseRecords])
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault()

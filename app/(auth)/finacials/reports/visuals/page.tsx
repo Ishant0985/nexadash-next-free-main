@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -25,11 +25,7 @@ export default function FinancialReportsPage() {
   const [endDate, setEndDate] = useState<Date>(new Date())
   const [reportType, setReportType] = useState('monthly')
 
-  useEffect(() => {
-    fetchFinancialSummary()
-  }, [startDate, endDate])
-
-  const fetchFinancialSummary = async () => {
+  const fetchFinancialSummary = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -64,7 +60,11 @@ export default function FinancialReportsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [startDate, endDate])
+
+  useEffect(() => {
+    fetchFinancialSummary()
+  }, [fetchFinancialSummary])
 
   const handleExportReport = () => {
     if (!summary) return
