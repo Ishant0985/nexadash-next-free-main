@@ -76,6 +76,7 @@ import { Edit, Trash2, Search, FileDown, MoreVertical, ChevronDown, MoreHorizont
 import PageHeading from '@/components/layout/page-heading';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 // Firebase imports
 import { db } from '@/firebaseClient';
@@ -876,11 +877,13 @@ export default function StockManagementPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <div className="h-10 w-10 rounded-md overflow-hidden">
-                          <img
+                        <div className="h-10 w-10 rounded-md overflow-hidden relative">
+                          <Image
                             src={item.imageUrl || '/placeholder.png'}
                             alt={item.name}
-                            className="h-full w-full object-cover"
+                            fill
+                            sizes="40px"
+                            className="object-cover"
                           />
                         </div>
                       </TableCell>

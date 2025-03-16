@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,11 +59,7 @@ export default function StaffSalariesPage() {
   const [otherDeduction, setOtherDeduction] = useState('')
   const [effectiveDate, setEffectiveDate] = useState<Date>(new Date())
 
-  useEffect(() => {
-    fetchStaffSalaries()
-  }, [departmentFilter])
-
-  const fetchStaffSalaries = async () => {
+  const fetchStaffSalaries = useCallback(async () => {
     try {
       setLoading(true)
       let q = query(collection(db, 'staff-salaries'), orderBy('createdAt', 'desc'))
@@ -99,7 +95,11 @@ export default function StaffSalariesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [departmentFilter])
+
+  useEffect(() => {
+    fetchStaffSalaries()
+  }, [fetchStaffSalaries])
 
   const handleAddSalary = async (e: React.FormEvent) => {
     e.preventDefault()

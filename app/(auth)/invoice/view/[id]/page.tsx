@@ -135,9 +135,8 @@ interface Params {
 }
 
 export default function InvoiceViewPage({ params }: { params: Params }) {
-  // Unwrap the params object using React.use()
-  const unwrappedParams = React.use(params as any) as Params;
-  const invoiceId: string = unwrappedParams.id;
+  // Get the invoice ID from params
+  const invoiceId: string = params.id;
   
   const router = useRouter();
   const [invoice, setInvoice] = useState<Invoice | null>(null);

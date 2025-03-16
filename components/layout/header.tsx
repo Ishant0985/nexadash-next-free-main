@@ -172,27 +172,25 @@ const Header = () => {
                 limit(10)
             )
 
-            const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
-                const newNotifications: NotificationType[] = snapshot.docs.map(doc => {
-                    const data = doc.data()
-                    return {
-                        id: doc.id,
-                        profile: data.senderImage || '/images/avatar.svg',
-                        user: data.senderName || 'System',
-                        message: data.message || '',
-                        time: formatNotificationTime(data.createdAt?.toDate()),
-                        shop: data.category || '',
-                        read: data.read || false
+            // If user is logged in, fetch notifications
+            if (auth.currentUser) {
+                // Listen for new notifications
+                const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
+                    try {
+                        const newNotifications: NotificationType[] = []
+                        snapshot.docs.forEach((doc) => {
+                            newNotifications.push({ id: doc.id, ...doc.data() } as NotificationType)
+                        })
+                        setNotifications(newNotifications)
+                    } catch (error) {
+                        console.error('Error fetching notifications:', error)
                     }
                 })
-                setNotifications(newNotifications)
-            }, (error) => {
-                console.error('Error fetching notifications:', error)
-            })
 
-            return () => unsubscribe()
+                return () => unsubscribe()
+            }
         }
-    }, [auth.currentUser])
+    }, [])
 
     // Setup Firebase Cloud Messaging listener for foreground notifications
     useEffect(() => {

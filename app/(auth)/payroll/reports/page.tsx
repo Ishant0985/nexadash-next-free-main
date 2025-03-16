@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -44,11 +44,7 @@ export default function PayrollReportsPage() {
   const [endDate, setEndDate] = useState<Date>(new Date())
   const [statusFilter, setStatusFilter] = useState('all')
 
-  useEffect(() => {
-    fetchPayrollRecords()
-  }, [startDate, endDate, statusFilter])
-
-  const fetchPayrollRecords = async () => {
+  const fetchPayrollRecords = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -99,7 +95,11 @@ export default function PayrollReportsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [startDate, endDate, statusFilter])
+
+  useEffect(() => {
+    fetchPayrollRecords()
+  }, [fetchPayrollRecords])
 
   const handleExportReport = () => {
     if (payrollRecords.length === 0) return

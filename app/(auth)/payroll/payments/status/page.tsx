@@ -1,5 +1,5 @@
  'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -40,11 +40,7 @@ export default function PaymentStatusPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
 
-  useEffect(() => {
-    fetchPaymentRecords()
-  }, [startDate, endDate, statusFilter, typeFilter])
-
-  const fetchPaymentRecords = async () => {
+  const fetchPaymentRecords = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -97,7 +93,11 @@ export default function PaymentStatusPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [startDate, endDate, statusFilter, typeFilter])
+
+  useEffect(() => {
+    fetchPaymentRecords()
+  }, [fetchPaymentRecords])
 
   const handleExportReport = () => {
     if (payments.length === 0) return
