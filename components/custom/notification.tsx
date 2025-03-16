@@ -206,7 +206,7 @@ export default function Notification() {
                 </div>
             </div>
             <div className="p-3 text-right">
-                <Button type="button" variant={'black'} size={'large'}>
+                <Button type="button" variant={'default'} size={'lg'}>
                     View all notifications
                 </Button>
             </div>
