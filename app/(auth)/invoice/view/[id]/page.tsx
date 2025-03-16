@@ -50,10 +50,39 @@ interface InvoiceItem {
   total: number;
 }
 
+// Add biller details interface
+interface BillerDetails {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  country?: string;
+  state?: string;
+  district?: string;
+  city?: string;
+  pincode?: string;
+  gstin?: string;
+}
+
+// Add customer details interface
+interface CustomerDetails {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  country?: string;
+  state?: string;
+  district?: string;
+  city?: string;
+  pincode?: string;
+  address?: string;
+}
+
 interface Invoice {
   id: string;
   invoiceNumber: string;
   customer: string;
+  // Old customer fields (for backward compatibility)
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
@@ -63,17 +92,15 @@ interface Invoice {
   customerCountry?: string;
   customerDistrict?: string;
   customerPincode?: string;
-  invoiceDate: any;
-  dueDate: any;
-  totalAmount: number;
-  paymentStatus: string;
-  paymentMethod?: string;
-  items: InvoiceItem[];
-  taxRate: number;
-  subTotal: number;
-  taxAmount: number;
-  discount?: number;
-  notes?: string;
+  
+  // New customer details object
+  customerDetails?: CustomerDetails;
+  
+  // New biller field and details
+  biller?: string;
+  billerDetails?: BillerDetails;
+  
+  // Old biller fields (for backward compatibility)
   fromName?: string;
   fromEmail?: string;
   fromPhone?: string;
@@ -81,10 +108,37 @@ interface Invoice {
   fromCity?: string;
   fromState?: string;
   fromPincode?: string;
+  
+  invoiceDate: any;
+  dueDate: any;
+  totalAmount: number;
+  paymentStatus: string;
+  paymentMethod?: string;
+  
+  // New payment details
+  paymentType?: 'all' | 'custom';
+  amountPaid?: number;
+  dueAmount?: number;
+  
+  items: InvoiceItem[];
+  taxRate: number;
+  subTotal: number;
+  taxAmount: number;
+  discount?: number;
+  notes?: string;
   createdAt: any;
 }
 
-export default function InvoiceViewPage({ params }: { params: { id: string } }) {
+// Add Params interface for type safety
+interface Params {
+  id: string;
+}
+
+export default function InvoiceViewPage({ params }: { params: Params }) {
+  // Unwrap the params object using React.use()
+  const unwrappedParams = React.use(params as any) as Params;
+  const invoiceId: string = unwrappedParams.id;
+  
   const router = useRouter();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,14 +148,14 @@ export default function InvoiceViewPage({ params }: { params: { id: string } }) 
     const fetchInvoice = async () => {
       setIsLoading(true);
       try {
-        const invoiceRef = doc(db, 'invoices', params.id);
+        const invoiceRef = doc(db, 'invoices', invoiceId);
         const invoiceSnap = await getDoc(invoiceRef);
         
         if (invoiceSnap.exists()) {
           const invoiceData = { id: invoiceSnap.id, ...invoiceSnap.data() } as Invoice;
           
-          // If we need to fetch customer details
-          if (invoiceData.customer) {
+          // If we need to fetch customer details (for older invoices)
+          if (invoiceData.customer && !invoiceData.customerDetails) {
             try {
               const customerRef = doc(db, 'customers', invoiceData.customer);
               const customerSnap = await getDoc(customerRef);
@@ -122,6 +176,26 @@ export default function InvoiceViewPage({ params }: { params: { id: string } }) 
             }
           }
           
+          // If we need to fetch biller details (for older invoices)
+          if (invoiceData.biller && !invoiceData.billerDetails) {
+            try {
+              const billerRef = doc(db, 'billers', invoiceData.biller);
+              const billerSnap = await getDoc(billerRef);
+              if (billerSnap.exists()) {
+                const billerData = billerSnap.data();
+                invoiceData.fromName = billerData.name;
+                invoiceData.fromEmail = billerData.email;
+                invoiceData.fromPhone = billerData.phone;
+                invoiceData.fromAddress = billerData.address;
+                invoiceData.fromCity = billerData.city;
+                invoiceData.fromState = billerData.state;
+                invoiceData.fromPincode = billerData.pincode;
+              }
+            } catch (billerError) {
+              console.error('Error fetching biller details:', billerError);
+            }
+          }
+          
           setInvoice(invoiceData);
         } else {
           setError('Invoice not found');
@@ -134,10 +208,10 @@ export default function InvoiceViewPage({ params }: { params: { id: string } }) 
       }
     };
 
-    if (params.id) {
+    if (invoiceId) {
       fetchInvoice();
     }
-  }, [params.id]);
+  }, [invoiceId]);
 
   const handlePrint = () => {
     window.print();
@@ -181,6 +255,33 @@ export default function InvoiceViewPage({ params }: { params: { id: string } }) 
     );
   }
 
+  // Get biller information from either the new billerDetails field or from the old fields
+  const billerName = invoice.billerDetails?.name || invoice.fromName || 'Motor Auto Care';
+  const billerEmail = invoice.billerDetails?.email || invoice.fromEmail || 'contact@motorautocare.com';
+  const billerPhone = invoice.billerDetails?.phone || invoice.fromPhone || '';
+  const billerGstin = invoice.billerDetails?.gstin || '';
+  
+  // Format biller address
+  const billerAddress = formatAddress(
+    '',
+    invoice.billerDetails?.city || invoice.fromCity,
+    invoice.billerDetails?.state || invoice.fromState,
+    invoice.billerDetails?.pincode || invoice.fromPincode
+  );
+  
+  // Get customer information from either the new customerDetails field or from the old fields
+  const customerName = invoice.customerDetails?.name || invoice.customerName || 'Customer';
+  const customerEmail = invoice.customerDetails?.email || invoice.customerEmail || '';
+  const customerPhone = invoice.customerDetails?.phone || invoice.customerPhone || '';
+  
+  // Format customer address
+  const customerAddress = formatAddress(
+    invoice.customerDetails?.address || invoice.customerAddress,
+    invoice.customerDetails?.city || invoice.customerCity,
+    invoice.customerDetails?.state || invoice.customerState,
+    invoice.customerDetails?.pincode || invoice.customerPincode
+  );
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex justify-between items-center mb-6">
@@ -204,44 +305,53 @@ export default function InvoiceViewPage({ params }: { params: { id: string } }) 
               <h2 className="text-xl font-semibold">
                 Invoice #{invoice.invoiceNumber}
               </h2>
-              <p className="text-gray-600">{invoice.fromName || 'Your Company'}</p>
+              <p className="text-gray-600">Moto Auto Care</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Bill From:</h3>
-              <p className="font-semibold">
-                {invoice.fromName || 'Din Djarin'}</p>
-              <p>{invoice.fromEmail || 'WendyKFrazier@teleworm.us'}</p>
-              <p>{invoice.fromPhone || '(+254)724-453-233'}</p>
-              <p>{invoice.fromAddress || '4458 Dennison Street, Stockton, CA 95204'}</p>
+              <p className="font-semibold">{billerName}</p>
+              <p>{billerEmail}</p>
+              <p>{billerPhone}</p>
+              {billerGstin && <p>GSTIN: {billerGstin}</p>}
+              {billerAddress && <p>{billerAddress}</p>}
             </div>
 
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Bill To:</h3>
-              <p className="font-semibold">{invoice.customerName || 'Starfleet Alliance'}</p>
-              <p>{invoice.customerEmail || 'OliviaDKaiser@teleworm.us'}</p>
-              <p>{invoice.customerPhone || '(+254)243-124-392'}</p>
-              <p>
-                {formatAddress(
-                  invoice.customerAddress,
-                  invoice.customerCity,
-                  invoice.customerState,
-                  invoice.customerPincode
-                ) || '4548 Pinnickinnick Street, Piscataway, NJ 08854'}
-              </p>
+              <p className="font-semibold">{customerName}</p>
+              <p>{customerEmail}</p>
+              <p>{customerPhone}</p>
+              <p>{customerAddress || 'No address provided'}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Invoice Date</h3>
-              <p>{formatDate(invoice.invoiceDate) || '6 March, 2023'}</p>
+              <p>{formatDate(invoice.invoiceDate) || 'N/A'}</p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-2">Due Date</h3>
-              <p>{formatDate(invoice.dueDate) || '7 March, 2023'}</p>
+              <p>{formatDate(invoice.dueDate) || 'N/A'}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">Payment Status</h3>
+              <p className={invoice.paymentStatus === 'Paid' ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                {invoice.paymentStatus}
+              </p>
+              {invoice.amountPaid !== undefined && invoice.amountPaid > 0 && (
+                <p className="text-sm">
+                  Amount Paid: {formatINR(invoice.amountPaid)}
+                </p>
+              )}
+              {invoice.dueAmount !== undefined && invoice.dueAmount > 0 && (
+                <p className="text-sm">
+                  Amount Due: {formatINR(invoice.dueAmount)}
+                </p>
+              )}
             </div>
           </div>
 
@@ -311,7 +421,7 @@ export default function InvoiceViewPage({ params }: { params: { id: string } }) 
                 </div>
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Amount Due</span>
-                  <span>{formatINR(invoice.totalAmount)}</span>
+                  <span>{formatINR(invoice.dueAmount || 0)}</span>
                 </div>
               </div>
             </div>
@@ -319,11 +429,11 @@ export default function InvoiceViewPage({ params }: { params: { id: string } }) 
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button variant="outline" onClick={() => router.push('/invoice')} className="mr-4">
-          Back to Invoices
+      <div className="flex justify-end gap-4">
+        <Button variant="outline" onClick={() => router.back()}>
+          Back
         </Button>
-        <Button onClick={() => router.push(`/invoice/edit/${params.id}`)}>
+        <Button onClick={() => router.push(`/invoice/edit/${invoiceId}`)}>
           Edit Invoice
         </Button>
       </div>
