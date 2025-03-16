@@ -53,7 +53,7 @@ const PaginationLink = ({
         className={cn(
             'grid size-[30px] place-content-center !rounded-none text-xs text-[#707079] !shadow-none !ring-0 hover:!border-x hover:border-gray-300',
             buttonVariants({
-                variant: isActive ? 'outline-general' : 'outline-general',
+                variant: isActive ? 'outline' : 'outline',
             }),
             className,
             isActive &&
