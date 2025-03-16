@@ -67,7 +67,6 @@ export default function Form() {
                                     <Select>
                                         <SelectTrigger
                                             className="w-full"
-                                            icons="shorting"
                                         >
                                             <SelectValue placeholder="Chicago" />
                                         </SelectTrigger>
@@ -89,7 +88,7 @@ export default function Form() {
                                         State
                                     </label>
                                     <Select>
-                                        <SelectTrigger icons="shorting">
+                                        <SelectTrigger>
                                             <SelectValue placeholder="Illinois" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -114,7 +113,7 @@ export default function Form() {
                             </div>
                             <Button
                                 type="button"
-                                variant={'black'}
+                                variant={'default'}
                                 className="bg-light-theme text-black hover:text-white"
                             >
                                 <Plus className="size-4" />
@@ -147,15 +146,15 @@ export default function Form() {
                             </div>
                             <div className="flex items-center justify-between gap-4">
                                 <Button
-                                    variant={'outline-general'}
-                                    size={'large'}
+                                    variant={'outline'}
+                                    size={'lg'}
                                 >
                                     Cancel
                                 </Button>
                                 <Button
                                     type="submit"
-                                    variant={'black'}
-                                    size={'large'}
+                                    variant={'default'}
+                                    size={'lg'}
                                 >
                                     Save
                                 </Button>

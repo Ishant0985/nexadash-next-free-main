@@ -97,8 +97,8 @@ export default function Forgot() {
 
                             <Button
                                 type="submit"
-                                variant={'black'}
-                                size={'large'}
+                                variant={'default'}
+                                size={'lg'}
                                 className="w-full"
                                 disabled={loading}
                             >

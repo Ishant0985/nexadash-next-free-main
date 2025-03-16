@@ -128,10 +128,10 @@ export default function StaffDetailsPage() {
                 {isEditing ? (
                   <div className="space-x-2">
                     <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-                    <Button variant="black" onClick={handleSave}>Save Changes</Button>
+                    <Button variant="default" onClick={handleSave}>Save Changes</Button>
                   </div>
                 ) : (
-                  <Button variant="black" onClick={() => setIsEditing(true)}>Edit Details</Button>
+                  <Button variant="outline" onClick={() => setIsEditing(true)}>Edit Details</Button>
                 )}
               </div>
             </div>

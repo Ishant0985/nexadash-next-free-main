@@ -336,7 +336,6 @@ export default function CheckBox() {
                         <div className="space-y-2.5 px-4 py-3">
                             <label className="flex items-center space-x-2">
                                 <Switch
-                                    variant={'outline'}
                                     color="outlineBlack"
                                 />
                                 <h2 className="text-xs/tight font-semibold text-black">
@@ -345,7 +344,6 @@ export default function CheckBox() {
                             </label>
                             <label className="flex items-center space-x-2">
                                 <Switch
-                                    variant={'outline'}
                                     color="outlinePrimary"
                                 />
                                 <h2 className="text-xs/tight font-semibold text-black">
@@ -354,7 +352,6 @@ export default function CheckBox() {
                             </label>
                             <label className="flex items-center space-x-2">
                                 <Switch
-                                    variant={'outline'}
                                     color="outlineSuccess"
                                 />
                                 <h2 className="text-xs/tight font-semibold text-black">
@@ -363,7 +360,6 @@ export default function CheckBox() {
                             </label>
                             <label className="flex items-center space-x-2">
                                 <Switch
-                                    variant={'outline'}
                                     color="outlinePending"
                                 />
                                 <h2 className="text-xs/tight font-semibold text-black">
@@ -372,7 +368,6 @@ export default function CheckBox() {
                             </label>
                             <label className="flex items-center space-x-2">
                                 <Switch
-                                    variant={'outline'}
                                     color="outlineDanger"
                                 />
                                 <h2 className="text-xs/tight font-semibold text-black">

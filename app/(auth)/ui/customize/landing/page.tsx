@@ -9,17 +9,57 @@ import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Edit2, Star } from "lucide-react";
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebaseClient';
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "react-hot-toast";
 import Image from 'next/image';
 import { Switch } from "@/components/ui/switch";
 
+// Define interfaces for data types
+interface VideoSection {
+  id?: string;
+  url: string;
+  title: string;
+  description: string;
+  thumbnail: string;
+}
+
+interface FeatureTab {
+  id?: string;
+  title: string;
+  description: string;
+}
+
+interface Feature {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+interface Testimonial {
+  id: string;
+  title: string;
+  description: string;
+  rating: number;
+  icon: string;
+}
+
+interface HeroSection {
+  id?: string;
+  title: string;
+  description: string;
+  button1Url: string;
+  button2Url: string;
+  button1Text: string;
+  button2Text: string;
+}
+
 export default function LandingCustomization() {
   const [activeTab, setActiveTab] = useState('video');
-  const [video, setVideo] = useState({ url: '', title: '', description: '' });
-  const [features, setFeatures] = useState([]);
-  const [featureTab, setFeatureTab] = useState({ title: '', description: '' });
-  const [testimonials, setTestimonials] = useState([]);
-  const [hero, setHero] = useState({
+  const [video, setVideo] = useState<VideoSection>({ url: '', title: '', description: '', thumbnail: '' });
+  const [features, setFeatures] = useState<Feature[]>([]);
+  const [featureTab, setFeatureTab] = useState<FeatureTab>({ title: '', description: '' });
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [hero, setHero] = useState<HeroSection>({
     title: '',
     description: '',
     button1Url: '',
@@ -27,7 +67,6 @@ export default function LandingCustomization() {
     button1Text: '',
     button2Text: ''
   });
-  const { toast } = useToast();
 
   // Fetch data functions
   const fetchData = async () => {
@@ -35,61 +74,53 @@ export default function LandingCustomization() {
       // Fetch video
       const videoSnapshot = await getDocs(collection(db, 'landingVideo'));
       if (!videoSnapshot.empty) {
-        const videoData = videoSnapshot.docs[0].data();
-        setVideo({ 
-          url: videoData.url || '', 
-          title: videoData.title || '', 
-          description: videoData.description || '' 
-        });
+        setVideo({ id: videoSnapshot.docs[0].id, ...videoSnapshot.docs[0].data() as Omit<VideoSection, 'id'> });
       }
 
       // Fetch features
       const featuresSnapshot = await getDocs(collection(db, 'features'));
-      setFeatures(featuresSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as Record<string, any> })) as any);
+      setFeatures(featuresSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Feature)));
 
       // Fetch feature tab
       const featureTabSnapshot = await getDocs(collection(db, 'featureTab'));
       if (!featureTabSnapshot.empty) {
-        const featureTabData = featureTabSnapshot.docs[0].data();
-        setFeatureTab({
-          title: featureTabData.title || '',
-          description: featureTabData.description || ''
-        });
+        setFeatureTab({ id: featureTabSnapshot.docs[0].id, ...featureTabSnapshot.docs[0].data() as Omit<FeatureTab, 'id'> });
       }
 
       // Fetch testimonials
       const testimonialsSnapshot = await getDocs(collection(db, 'testimonials'));
-      setTestimonials(testimonialsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as Record<string, any> })) as any);
+      setTestimonials(testimonialsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Testimonial)));
 
       // Fetch hero
       const heroSnapshot = await getDocs(collection(db, 'hero'));
       if (!heroSnapshot.empty) {
-        const heroData = heroSnapshot.docs[0].data();
-        setHero({
-          title: heroData.title || '',
-          description: heroData.description || '',
-          button1Url: heroData.button1Url || '',
-          button2Url: heroData.button2Url || '',
-          button1Text: heroData.button1Text || '',
-          button2Text: heroData.button2Text || ''
-        });
+        setHero({ id: heroSnapshot.docs[0].id, ...heroSnapshot.docs[0].data() as Omit<HeroSection, 'id'> });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch data",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch data");
     }
   };
 
   // Handle image upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setState: React.Dispatch<React.SetStateAction<any>>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setState: (callback: (prev: any) => any) => void) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setState((prev: any) => ({ ...prev, icon: reader.result }));
+        const result = reader.result as string;
+        setState((prev: any) => ({ ...prev, icon: result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle video thumbnail upload
+  const handleThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setVideo(prev => ({ ...prev, thumbnail: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
@@ -98,46 +129,30 @@ export default function LandingCustomization() {
   // Video section handlers
   const handleVideoSubmit = async () => {
     try {
-      // Check if id exists in video object before destructuring
-      if ('id' in video) {
-        const { id, ...videoData } = video as { id: string; url: string; title: string; description: string };
+      if (video.id) {
+        const { id, ...videoData } = video;
         await updateDoc(doc(db, 'landingVideo', id), videoData);
       } else {
         await addDoc(collection(db, 'landingVideo'), video);
       }
-      toast({
-        title: "Success",
-        description: "Video section updated successfully",
-      });
+      toast.success("Video section updated successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update video section",
-        variant: "destructive",
-      });
+      toast.error("Failed to update video section");
     }
   };
 
   // Feature tab handlers
   const handleFeatureTabSubmit = async () => {
     try {
-      // Check if id exists in featureTab object before using it
-      if ('id' in featureTab) {
-        const { id, ...featureTabData } = featureTab as { id: string; title: string; description: string };
+      if (featureTab.id) {
+        const { id, ...featureTabData } = featureTab;
         await updateDoc(doc(db, 'featureTab', id), featureTabData);
       } else {
         await addDoc(collection(db, 'featureTab'), featureTab);
       }
-      toast({
-        title: "Success",
-        description: "Feature tab updated successfully",
-      });
+      toast.success("Feature tab updated successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update feature tab",
-        variant: "destructive",
-      });
+      toast.error("Failed to update feature tab");
     }
   };
 
@@ -145,11 +160,7 @@ export default function LandingCustomization() {
   const handleAddFeature = async () => {
     try {
       if (features.length >= 6) {
-        toast({
-          title: "Warning",
-          description: "Maximum 6 features allowed",
-          variant: "destructive",
-        });
+        toast.error("Maximum 6 features allowed");
         return;
       }
       await addDoc(collection(db, 'features'), {
@@ -159,28 +170,17 @@ export default function LandingCustomization() {
       });
       fetchData();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add feature",
-        variant: "destructive",
-      });
+      toast.error("Failed to add feature");
     }
   };
 
-  const handleUpdateFeature = async (id: string, data: { title?: string; description?: string; icon?: string }) => {
+  const handleUpdateFeature = async (id: string, data: Partial<Feature>) => {
     try {
       await updateDoc(doc(db, 'features', id), data);
       fetchData();
-      toast({
-        title: "Success",
-        description: "Feature updated successfully",
-      });
+      toast.success("Feature updated successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update feature",
-        variant: "destructive",
-      });
+      toast.error("Failed to update feature");
     }
   };
 
@@ -188,16 +188,9 @@ export default function LandingCustomization() {
     try {
       await deleteDoc(doc(db, 'features', id));
       fetchData();
-      toast({
-        title: "Success",
-        description: "Feature deleted successfully",
-      });
+      toast.success("Feature deleted successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete feature",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete feature");
     }
   };
 
@@ -212,28 +205,17 @@ export default function LandingCustomization() {
       });
       fetchData();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add testimonial",
-        variant: "destructive",
-      });
+      toast.error("Failed to add testimonial");
     }
   };
 
-  const handleUpdateTestimonial = async (id: string, data: Record<string, any>) => {
+  const handleUpdateTestimonial = async (id: string, data: Partial<Testimonial>) => {
     try {
       await updateDoc(doc(db, 'testimonials', id), data);
       fetchData();
-      toast({
-        title: "Success",
-        description: "Testimonial updated successfully",
-      });
+      toast.success("Testimonial updated successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update testimonial",
-        variant: "destructive",
-      });
+      toast.error("Failed to update testimonial");
     }
   };
 
@@ -241,68 +223,47 @@ export default function LandingCustomization() {
     try {
       await deleteDoc(doc(db, 'testimonials', id));
       fetchData();
-      toast({
-        title: "Success",
-        description: "Testimonial deleted successfully",
-      });
+      toast.success("Testimonial deleted successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete testimonial",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete testimonial");
     }
   };
 
   // Hero section handlers
   const handleHeroSubmit = async () => {
     try {
-      const heroData = {
-        title: hero.title,
-        description: hero.description,
-        button1Text: hero.button1Text,
-        button2Text: hero.button2Text,
-        button1Url: hero.button1Url,
-        button2Url: hero.button2Url
-      };
-      
-      const heroRef = await getDocs(collection(db, 'hero'));
-      if (!heroRef.empty) {
-        const docId = heroRef.docs[0].id;
-        await updateDoc(doc(db, 'hero', docId), heroData);
+      if (hero.id) {
+        const { id, ...heroData } = hero;
+        await updateDoc(doc(db, 'hero', id), heroData);
       } else {
-        await addDoc(collection(db, 'hero'), heroData);
+        await addDoc(collection(db, 'hero'), hero);
       }
-      toast({
-        title: "Success",
-        description: "Hero section updated successfully",
-      });
+      toast.success("Hero section updated successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update hero section",
-        variant: "destructive",
-      });
+      toast.error("Failed to update hero section");
     }
   };
 
   return (
     <div className="container mx-auto py-6">
       <Tabs defaultValue="video" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="video">Video Section</TabsTrigger>
-          <TabsTrigger value="features">Features</TabsTrigger>
-          <TabsTrigger value="testimonials">Testimonials</TabsTrigger>
-          <TabsTrigger value="hero">Hero Section</TabsTrigger>
+        <TabsList className="flex justify-between items-center mb-5 overflow-x-auto rounded-lg bg-white shadow-sm">
+          <div className="inline-flex gap-2.5 px-5 py-[11px] text-sm/[18px] font-semibold">
+
+            <TabsTrigger value="video" className="leading-3 data-[state=active]:bg-black data-[state=active]:text-white">Video Section</TabsTrigger>
+            <TabsTrigger value="features" className="leading-3 data-[state=active]:bg-black data-[state=active]:text-white">Features</TabsTrigger>
+            <TabsTrigger value="testimonials" className="leading-3 data-[state=active]:bg-black data-[state=active]:text-white">Testimonials</TabsTrigger>
+            <TabsTrigger value="hero" className="leading-3 data-[state=active]:bg-black data-[state=active]:text-white">Hero Section</TabsTrigger>
+          </div>
         </TabsList>
 
         {/* Video Section */}
-        <TabsContent value="video">
-          <Card>
-            <CardHeader>
+        <TabsContent value="video" className="font-medium text-black">
+          <Card className="shadow-none">
+            <CardHeader className="p-5">
               <CardTitle>Video Section Customization</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5">
               <div className="space-y-4">
                 <Input
                   placeholder="Video URL"
@@ -319,6 +280,25 @@ export default function LandingCustomization() {
                   value={video.description}
                   onChange={(e) => setVideo({ ...video, description: e.target.value })}
                 />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Video Thumbnail</label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailUpload}
+                  />
+                  {video.thumbnail && (
+                    <div className="mt-2">
+                      <Image
+                        src={video.thumbnail}
+                        alt="Video thumbnail"
+                        width={200}
+                        height={112}
+                        className="rounded"
+                      />
+                    </div>
+                  )}
+                </div>
                 <Button onClick={handleVideoSubmit}>Save Video Section</Button>
               </div>
             </CardContent>
@@ -326,12 +306,12 @@ export default function LandingCustomization() {
         </TabsContent>
 
         {/* Features Section */}
-        <TabsContent value="features">
-          <Card>
-            <CardHeader>
+        <TabsContent value="features" className="font-medium text-black">
+          <Card className="shadow-none">
+            <CardHeader className="p-5">
               <CardTitle>Features Section Customization</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5">
               <div className="space-y-6">
                 {/* Feature Tab */}
                 <div className="border p-4 rounded-lg">
@@ -360,23 +340,33 @@ export default function LandingCustomization() {
                       Add Feature
                     </Button>
                   </div>
-                  {features.map((feature: any) => (
+                  {features.map((feature) => (
                     <div key={feature.id} className="border p-4 rounded-lg">
                       <div className="space-y-4">
                         <Input
                           placeholder="Feature Title"
                           value={feature.title}
-                          onChange={(e) => handleUpdateFeature(feature.id, { title: e.target.value, description: feature.description, icon: feature.icon })}
+                          onChange={(e) => handleUpdateFeature(feature.id, { ...feature, title: e.target.value })}
                         />
                         <Textarea
                           placeholder="Feature Description"
                           value={feature.description}
-                          onChange={(e) => handleUpdateFeature(feature.id, { title: feature.title, description: e.target.value, icon: feature.icon })}
+                          onChange={(e) => handleUpdateFeature(feature.id, { ...feature, description: e.target.value })}
                         />
                         <Input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleImageUpload(e, (data) => handleUpdateFeature(feature.id, { title: feature.title, description: feature.description, icon: data.icon }))}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                const icon = reader.result as string;
+                                handleUpdateFeature(feature.id, { ...feature, icon });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
                         />
                         {feature.icon && (
                           <div className="mt-2">
@@ -406,24 +396,18 @@ export default function LandingCustomization() {
         </TabsContent>
 
         {/* Testimonials Section */}
-        <TabsContent value="testimonials">
-          <Card>
-            <CardHeader>
+        <TabsContent value="testimonials" className="font-medium text-black">
+          <Card className="shadow-none">
+            <CardHeader className="p-5">
               <CardTitle>Testimonials Section Customization</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5">
               <div className="space-y-4">
                 <Button onClick={handleAddTestimonial}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add Testimonial
                 </Button>
-                {testimonials.map((testimonial: { 
-                  id: string; 
-                  title: string; 
-                  description: string; 
-                  rating: number;
-                  icon?: string;
-                }) => (
+                {testimonials.map((testimonial) => (
                   <div key={testimonial.id} className="border p-4 rounded-lg">
                     <div className="space-y-4">
                       <Input
@@ -441,9 +425,8 @@ export default function LandingCustomization() {
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star
                             key={star}
-                            className={`h-5 w-5 cursor-pointer ${
-                              star <= testimonial.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-                            }`}
+                            className={`h-5 w-5 cursor-pointer ${star <= testimonial.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+                              }`}
                             onClick={() => handleUpdateTestimonial(testimonial.id, { ...testimonial, rating: star })}
                           />
                         ))}
@@ -451,7 +434,17 @@ export default function LandingCustomization() {
                       <Input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => handleImageUpload(e, (data) => handleUpdateTestimonial(testimonial.id, { ...testimonial, icon: data.icon }))}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              const icon = reader.result as string;
+                              handleUpdateTestimonial(testimonial.id, { ...testimonial, icon });
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
                       />
                       {testimonial.icon && (
                         <div className="mt-2">
@@ -480,12 +473,12 @@ export default function LandingCustomization() {
         </TabsContent>
 
         {/* Hero Section */}
-        <TabsContent value="hero">
-          <Card>
-            <CardHeader>
+        <TabsContent value="hero" className="font-medium text-black" >
+          <Card className="shadow-none">
+            <CardHeader className="p-5">
               <CardTitle>Hero Section Customization</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-5">
               <div className="space-y-4">
                 <Input
                   placeholder="Hero Title"

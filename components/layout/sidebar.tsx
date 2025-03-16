@@ -505,7 +505,7 @@ const Sidebar = () => {
                             <ul className="submenu space-y-2 pl-12 pr-5">
                                 <li>
                                     <NavLink
-                                        href="/ui/customization/landing"
+                                        href="/ui/customize/landing"
                                         isAccordion={true}
                                     >
                                         Landing Page
@@ -513,7 +513,7 @@ const Sidebar = () => {
                                 </li>
                                 <li>
                                     <NavLink
-                                        href="/ui/customization/terms"
+                                        href="/ui/customize/terms"
                                         isAccordion={true}
                                     >
                                         Terms Page
@@ -521,7 +521,7 @@ const Sidebar = () => {
                                 </li>
                                 <li>
                                     <NavLink
-                                        href="/ui/customization/other"
+                                        href="/ui/customize/other"
                                         isAccordion={true}
                                     >
                                         Other Pages

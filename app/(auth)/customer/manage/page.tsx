@@ -144,7 +144,7 @@ export default function ManageCustomers() {
             <div className="flex items-center gap-2">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button type="button" variant={'outline-general'}>
+                  <Button type="button" variant={'outline'}>
                     <CalendarCheck className="mr-2 h-4 w-4" />
                     {date ? format(date, 'PP') : <span>Start date</span>}
                   </Button>
@@ -156,7 +156,7 @@ export default function ManageCustomers() {
               <span className="text-xs font-medium text-gray-700">To</span>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button type="button" variant={'outline-general'}>
+                  <Button type="button" variant={'outline'}>
                     <CalendarCheck className="mr-2 h-4 w-4" />
                     {mainDate ? format(mainDate, 'PPP') : <span>End date</span>}
                   </Button>
@@ -169,7 +169,7 @@ export default function ManageCustomers() {
           </div>
           <div className="flex items-center gap-2.5">
             <Link href="/add-customers">
-              <Button variant={'black'}>
+              <Button variant={'outline'}>
                 <Plus className="mr-2 h-4 w-4" />
                 New Customer
               </Button>
@@ -206,13 +206,13 @@ export default function ManageCustomers() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex gap-2">
                       <Link href={`/customer-details?id=${customer.id}`}>
-                        <Button variant="outline" size="small">
+                        <Button variant="outline" size="sm">
                           Edit
                         </Button>
                       </Link>
                       <Button 
                         variant="outline" 
-                        size="small" 
+                        size="sm" 
                         onClick={() => {
                           if (window.confirm('Are you sure you want to delete this customer?')) {
                             handleDelete(customer.id);

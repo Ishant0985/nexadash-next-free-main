@@ -20,7 +20,7 @@ const Chart = () => {
                     <OnlineSalesAreaChart isCardHeader={false} />
                     <LineSingleChart />
                     <LineChart />
-                    <DistributionRadialStackedChart isShowHeader={false} />
+                    <DistributionRadialStackedChart isShowTitle={false} />
                     <RadarAreaChart
                         cardContentClassName="max-h-[400px]"
                         cardclassName="shadow-sm"

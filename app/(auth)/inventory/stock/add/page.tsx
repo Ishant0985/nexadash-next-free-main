@@ -159,25 +159,24 @@ const AddStock = () => {
     };
 
     const uploadImage = async (file: File): Promise<string> => {
-        const storage = getStorage();
-        const timestamp = new Date().getTime();
-        const storageRef = ref(storage, `images/${timestamp}_${file.name}`);
-
-        const uploadTask = uploadBytesResumable(storageRef, file);
-
         return new Promise((resolve, reject) => {
-            uploadTask.on('state_changed',
-                (snapshot) => {
-                    // Handle progress if needed
-                },
-                (error) => {
-                    reject(error);
-                },
-                async () => {
-                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                    resolve(downloadURL);
+            const reader = new FileReader();
+            
+            reader.onload = (event) => {
+                if (event.target?.result) {
+                    // Return the data URI directly
+                    resolve(event.target.result as string);
+                } else {
+                    reject(new Error('Failed to convert file to data URI'));
                 }
-            );
+            };
+            
+            reader.onerror = (error) => {
+                reject(error);
+            };
+            
+            // Read the file as a data URL (base64 encoded)
+            reader.readAsDataURL(file);
         });
     };
 
@@ -328,15 +327,15 @@ const AddStock = () => {
     };
 
     return (
-        <div className="container mx-auto py-6">
+        <div className="relative space-y-4">
             <PageHeader heading="Add Stock" />
 
-            <Card className="mb-6">
-                <CardHeader>
-                    <CardTitle>Select Stock Type</CardTitle>
-                    <CardDescription>Choose whether you want to add a product or service</CardDescription>
+            <Card className=" mt-6">
+                <CardHeader className="text-primary-foreground">
+                    <CardTitle className="text-primary-foreground font-bold text-lg py-2">Select Stock Type</CardTitle>
+                    <CardDescription className="text-primary-foreground text-sm py-2">Choose whether you want to add a product or service</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
                     <Tabs
                         defaultValue="Product"
                         value={stockType}

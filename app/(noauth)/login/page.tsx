@@ -149,7 +149,7 @@ export default function Login() {
           </CardHeader>
           <CardContent className="space-y-[30px]">
             <div className="grid grid-cols-1 gap-4">
-              <Button variant={'outline-general'} size={'large'} className="w-full" onClick={handleGoogleLogin}>
+              <Button variant={'outline'} size={'lg'} className="w-full" onClick={handleGoogleLogin}>
                 <IconGoogle className="!size-[18px]" />
                 Google
               </Button>
@@ -185,7 +185,7 @@ export default function Login() {
               <Link href="/forgot" className="!mt-4 block text-right text-xs font-semibold text-black underline underline-offset-[3px] hover:text-[#3C3C3D]">
                 Forgot password?
               </Link>
-              <Button type="submit" variant={'black'} size={'large'} className="w-full">
+              <Button type="submit" variant={'default'} size={'lg'} className="w-full">
                 Login
               </Button>
               <div className="text-center text-xs font-semibold text-black">

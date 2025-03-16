@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { collection, addDoc, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebaseClient';
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "react-hot-toast";
 import TiptapEditor from '@/components/TiptapEditor';
 
 type PolicyType = 'terms' | 'privacy' | 'cookies';
@@ -23,7 +23,6 @@ export default function TermsCustomization() {
   const [policyType, setPolicyType] = useState<PolicyType>('terms');
   const [content, setContent] = useState('');
   const [documentId, setDocumentId] = useState<string | null>(null);
-  const { toast } = useToast();
 
   // Fetch existing content
   const fetchContent = async () => {
@@ -39,11 +38,7 @@ export default function TermsCustomization() {
         setDocumentId(null);
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch policy content",
-        variant: "destructive",
-      });
+      toast.error("Failed to fetch policy content");
     }
   };
 
@@ -71,26 +66,19 @@ export default function TermsCustomization() {
         });
       }
       
-      toast({
-        title: "Success",
-        description: "Policy content saved successfully",
-      });
+      toast.success("Policy content saved successfully");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save policy content",
-        variant: "destructive",
-      });
+      toast.error("Failed to save policy content");
     }
   };
 
   return (
     <div className="container mx-auto py-6">
-      <Card>
-        <CardHeader>
+      <Card className="shadow-none">
+        <CardHeader className="p-5">
           <CardTitle>Policy Content Customization</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-5">
           <div className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium">Policy Type</label>

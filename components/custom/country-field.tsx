@@ -1236,7 +1236,7 @@ const CountryField = ({
     hasError,
     setValue,
 }: ICountryField) => {
-    const [country, setCountry] = useState('US')
+    const [country, setCountry] = useState('IN')
 
     return (
         <>
@@ -1253,7 +1253,6 @@ const CountryField = ({
                 >
                     <SelectTrigger
                         className="w-auto shrink-0 gap-1.5 rounded-r-none bg-gray-100 px-2 text-black placeholder:text-black focus:ring-0 sm:gap-2 sm:px-3 [&>svg]:size-3.5 sm:[&>svg]:size-4"
-                        icons="shorting"
                     >
                         <Image
                             width={20}

@@ -36,10 +36,10 @@ const ContactUs = () => {
                                         Speak to our friendly team.
                                     </p>
                                     <Link
-                                        href="mailto:sales@nexadash.com"
+                                        href="mailto:yadav.ishantsbi0985@gmail.com"
                                         className="block leading-none underline underline-offset-[3px] transition hover:text-primary"
                                     >
-                                        sales@nexadash.com
+                                        yadav.ishantsbi0985@gmail.com
                                     </Link>
                                 </div>
                             </Card>
@@ -53,10 +53,10 @@ const ContactUs = () => {
                                         We&apos;re here to help.
                                     </p>
                                     <Link
-                                        href="mailto:support@nexadash.com"
+                                        href="mailto:yadav.ishantsbi0985@gmail.com"
                                         className="block leading-none underline underline-offset-[3px] transition hover:text-primary"
                                     >
-                                        support@nexadash.com
+                                        yadav.ishantsbi0985@gmail.com
                                     </Link>
                                 </div>
                             </Card>
@@ -68,8 +68,7 @@ const ContactUs = () => {
                                         Visit our office HQ.
                                     </p>
                                     <p className="leading-none">
-                                        15, Elliot Avenue, NY
-                                    </p>
+                                        Pachwal, Rampur, Jaunpur, Uttar Pradesh, India                                    </p>
                                 </div>
                             </Card>
                             <Card className="flex items-start gap-2.5 p-4">
@@ -80,10 +79,10 @@ const ContactUs = () => {
                                         Mon-Fri from 8am to 6pm.
                                     </p>
                                     <Link
-                                        href="tel:+1 312-718-1914"
+                                        href="tel:+919453597449"
                                         className="block leading-none transition hover:text-primary"
                                     >
-                                        +1 312-718-1914
+                                        +91 9453597449
                                     </Link>
                                 </div>
                             </Card>
@@ -109,14 +108,14 @@ const ContactUs = () => {
                                         First name
                                         <span className="text-primary">*</span>
                                     </label>
-                                    <Input type="text" placeholder="Nichole" />
+                                    <Input type="text" placeholder="Shashank" />
                                 </div>
                                 <div className="space-y-2.5">
                                     <label className="block font-medium leading-tight text-black">
                                         Last name
                                         <span className="text-primary">*</span>
                                     </label>
-                                    <Input type="text" placeholder="Coyle" />
+                                    <Input type="text" placeholder="Yadav" />
                                 </div>
                             </div>
                             <div className="space-y-2.5">
@@ -126,7 +125,7 @@ const ContactUs = () => {
                                 </label>
                                 <Input
                                     type="email"
-                                    placeholder="NicholeJCoyle@gmail.com"
+                                    placeholder="motorautocare@gmail.com"
                                 />
                             </div>
                             <div className="space-y-2.5">
@@ -194,8 +193,8 @@ const ContactUs = () => {
                             <div>
                                 <Button
                                     type="submit"
-                                    variant={'black'}
-                                    size={'large'}
+                                    variant={'default'}
+                                    size={'lg'}
                                 >
                                     Send Message
                                 </Button>

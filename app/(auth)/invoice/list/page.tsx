@@ -547,8 +547,9 @@ export default function InvoiceListPage() {
           </Button>
         }
       />
-      <div className="p-4 max-w-7xl mx-auto">
+      {/* <div className="p-4 max-w-7xl mx-auto"> */}
 
+      <div className="relative space-y-4">
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="flex justify-between items-center mb-5 overflow-x-auto rounded-lg bg-white shadow-sm">
