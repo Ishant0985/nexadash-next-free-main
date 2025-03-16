@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import PageHeading from '@/components/layout/page-heading'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -17,9 +18,13 @@ import {
     Ellipsis,
     TrendingDown,
     TrendingUp,
+    Users,
+    PieChart,
+    DollarSign,
+    TrendingDown as Expense,
+    BarChart2,
 } from 'lucide-react'
 import Image from 'next/image'
-import { useState } from 'react'
 import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import IconChart from '@/components/icons/icon-chart'
@@ -37,71 +42,269 @@ import {
     ITable,
 } from '@/components/custom/table/dashboard-columns'
 
+// Firebase imports
+import { db } from '@/firebaseClient'
+import { admin } from '@/firebaseAdmin'
+import {
+    collection,
+    getDocs,
+    query,
+    orderBy,
+    where,
+    limit,
+    Timestamp,
+} from 'firebase/firestore'
+
+// Dashboard analytics types
+interface AnalyticsData {
+    totalUsers: number
+    totalCustomers: number
+    totalRevenue: number
+    totalProfit: number
+    totalExpenses: number
+    totalProducts: number
+    totalServices: number
+    userGrowthRate: number
+    revenueGrowthRate: number
+    profitGrowthRate: number
+    salesByMonth: { month: string; value: number }[]
+    dailySales: { day: string; value: number }[]
+    topSellingProducts: { name: string; value: number }[]
+    categoryDistribution: { category: string; value: number }[]
+    recentTransactions: ITable[]
+}
+
 const Home = () => {
     const [date, setDate] = useState<Date>()
     const [mainDate, setMainDate] = useState<Date>()
+    const [isLoading, setIsLoading] = useState(true)
+    const [analytics, setAnalytics] = useState<AnalyticsData>({
+        totalUsers: 0,
+        totalCustomers: 0,
+        totalRevenue: 0,
+        totalProfit: 0,
+        totalExpenses: 0,
+        totalProducts: 0,
+        totalServices: 0,
+        userGrowthRate: 0,
+        revenueGrowthRate: 0,
+        profitGrowthRate: 0,
+        salesByMonth: [],
+        dailySales: [],
+        topSellingProducts: [],
+        categoryDistribution: [],
+        recentTransactions: []
+    })
 
-    const data: ITable[] = [
-        {
-            id: '200257',
+    // Fetch analytics data
+    useEffect(() => {
+        const fetchAnalyticsData = async () => {
+            setIsLoading(true)
+            try {
+                // Get total users count
+                const usersQuery = query(collection(db, 'users'))
+                const usersSnapshot = await getDocs(usersQuery)
+                const totalUsers = usersSnapshot.size
+
+                // Get customers data
+                const customersQuery = query(collection(db, 'customers'))
+                const customersSnapshot = await getDocs(customersQuery)
+                const totalCustomers = customersSnapshot.size
+
+                // Get products data
+                const productsQuery = query(collection(db, 'products'))
+                const productsSnapshot = await getDocs(productsQuery)
+                const products = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                const totalProducts = products.length
+
+                // Get services data
+                const servicesQuery = query(collection(db, 'services'))
+                const servicesSnapshot = await getDocs(servicesQuery)
+                const services = servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                const totalServices = services.length
+
+                // Get invoices for revenue calculation
+                const invoicesQuery = query(collection(db, 'invoices'), orderBy('createdAt', 'desc'))
+                const invoicesSnapshot = await getDocs(invoicesQuery)
+                const invoices = invoicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                
+                // Calculate total revenue
+                const totalRevenue = invoices.reduce((sum, invoice) => {
+                    const total = (invoice as any).totalAmount || 0
+                    return sum + total
+                }, 0)
+
+                // Calculate profit (assuming 30% profit margin if not specified in data)
+                const totalProfit = invoices.reduce((sum, invoice) => {
+                    const total = (invoice as any).totalAmount || 0
+                    const profit = (invoice as any).profit || (total * 0.3) // Assuming 30% profit if not specified
+                    return sum + profit
+                }, 0)
+
+                // Calculate expenses (revenue - profit)
+                const totalExpenses = totalRevenue - totalProfit
+
+                // Get recent transactions
+                const recentTransactionsQuery = query(
+                    collection(db, 'invoices'), 
+                    orderBy('createdAt', 'desc'),
+                    limit(5)
+                )
+                const recentTransactionsSnapshot = await getDocs(recentTransactionsQuery)
+                
+                // Create recent transactions list for table
+                const recentTransactions: ITable[] = []
+                
+                // Need to get customer data for each transaction
+                const customersMap = new Map()
+                customersSnapshot.docs.forEach(doc => {
+                    customersMap.set(doc.id, { id: doc.id, ...doc.data() })
+                })
+                
+                // Format recent transactions data for table
+                for (const doc of recentTransactionsSnapshot.docs) {
+                    const invoice = doc.data()
+                    
+                    // Get customer
+                    const customer = customersMap.get(invoice.customer) || { name: 'Unknown', email: '' }
+                    
+                    recentTransactions.push({
+                        id: doc.id,
             receptionist: {
-                image: '/images/avatar.svg',
-                name: 'Jerome Bell',
-            },
-            sales_id: '#200257',
-            amount: '$928.41',
-            due_date: 'Mar 31, 2024',
-            status: 'done',
-        },
-        {
-            id: '#526587',
-            receptionist: {
-                image: '/images/avatar-three.svg',
-                name: 'Victoria Alonso',
-            },
-            sales_id: '#526587',
-            amount: '$601.13',
-            due_date: 'Mar 29, 2024',
-            status: 'pending',
-        },
-        {
-            id: '#696589',
-            receptionist: {
-                image: '/images/avatar-eight.svg',
-                name: 'Arlene McCoy',
-            },
-            sales_id: '#696589',
-            amount: '$105.55',
-            due_date: 'Mar 20, 2024',
-            status: 'cancelled',
-        },
-        {
-            id: '#200257',
-            receptionist: {
-                image: '/images/avatar.svg',
-                name: 'Jerome Bell',
-            },
-            sales_id: '#200257',
-            amount: '$739.65',
-            due_date: 'Mar 31, 2024',
-            status: 'done',
-        },
-        {
-            id: '#105986',
-            receptionist: {
-                image: '/images/avatar-three.svg',
-                name: 'Darrell Steward',
-            },
-            sales_id: '#105986',
-            amount: '$450.54',
-            due_date: 'Feb 16, 2024',
-            status: 'done',
-        },
-    ]
+                            image: customer.photoURL || '/images/avatar.svg',
+                            name: customer.name || 'Unknown',
+                        },
+                        sales_id: `#₹{invoice.invoiceNumber || doc.id.substring(0, 6)}`,
+                        amount: `₹₹{invoice.totalAmount?.toFixed(2) || '0.00'}`,
+                        due_date: invoice.dueDate ? new Date(invoice.dueDate.seconds * 1000).toLocaleDateString() : 'N/A',
+                        status: invoice.status === 'paid' ? 'done' : invoice.status === 'pending' ? 'pending' : 'cancelled',
+                    })
+                }
+
+                // Calculate monthly sales for chart
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                const salesByMonth = Array(12).fill(0).map((_, i) => ({ month: monthNames[i], value: 0 }))
+                invoices.forEach(invoice => {
+                    const invoiceData = invoice as any;
+                    if (invoiceData?.createdAt?.seconds && invoiceData?.totalAmount) {
+                        const date = new Date(invoiceData.createdAt.seconds * 1000)
+                        const month = date.getMonth()
+                        salesByMonth[month].value += invoiceData.totalAmount
+                    }
+                })
+
+                // Calculate daily sales for the last 7 days
+                const today = new Date()
+                const dailySales: { day: string; value: number }[] = []
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(today)
+                    date.setDate(today.getDate() - i)
+                    const dayName = format(date, 'EEE')
+                    
+                    // Initialize with zero
+                    dailySales.push({ day: dayName, value: 0 })
+                }
+                
+                // Calculate sales for each day
+                invoices.forEach(invoice => {
+                    if ((invoice as any).createdAt && (invoice as any).totalAmount) {
+                        const invoiceDate = new Date((invoice as any).createdAt.seconds * 1000)
+                        const diffTime = Math.abs(today.getTime() - invoiceDate.getTime())
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                        if (diffDays <= 7) {
+                            const dayIndex = 7 - diffDays
+                            if (dayIndex >= 0 && dayIndex < 7) {
+                                dailySales[dayIndex].value += (invoice as any).totalAmount
+                            }
+                        }
+                    }
+                })
+
+                // Calculate top selling products
+                const productSales = new Map()
+                
+                invoices.forEach(invoice => {
+                    if ((invoice as any).items && Array.isArray((invoice as any).items)) {
+                        (invoice as any).items.forEach((item: any) => {
+                            if (item.productId) {
+                                const currentValue = productSales.get(item.productId) || 0
+                                productSales.set(item.productId, currentValue + (item.quantity || 1))
+                            }
+                        })
+                    }
+                })
+                
+                // Create top selling products list
+                const topSellingProducts = []
+                for (const [productId, quantity] of productSales.entries()) {
+                    const product = products.find(p => p.id === productId)
+                    if (product) {
+                        topSellingProducts.push({
+                            name: (product as any).name || 'Unknown Product',
+                            value: quantity
+                        })
+                    }
+                }
+                
+                // Sort and limit to top 5
+                topSellingProducts.sort((a, b) => b.value - a.value)
+                const top5Products = topSellingProducts.slice(0, 5)
+
+                // Calculate category distribution
+                const categoryMap = new Map()
+                
+                products.forEach(product => {
+                    if ((product as any).category) {
+                        const currentValue = categoryMap.get((product as any).category) || 0
+                        categoryMap.set((product as any).category, currentValue + 1)
+                    }
+                })
+                
+                const categoryDistribution = []
+                for (const [categoryId, count] of categoryMap.entries()) {
+                    categoryDistribution.push({
+                        category: categoryId,
+                        value: count
+                    })
+                }
+
+                // Calculate growth rates (comparing to previous month)
+                // For this example, we'll use random growth rates
+                const userGrowthRate = 12.5
+                const revenueGrowthRate = 15.15
+                const profitGrowthRate = 10.8
+
+                // Set analytics data
+                setAnalytics({
+                    totalUsers,
+                    totalCustomers,
+                    totalRevenue,
+                    totalProfit,
+                    totalExpenses,
+                    totalProducts,
+                    totalServices,
+                    userGrowthRate,
+                    revenueGrowthRate,
+                    profitGrowthRate,
+                    salesByMonth,
+                    dailySales,
+                    topSellingProducts: top5Products,
+                    categoryDistribution,
+                    recentTransactions
+                })
+            } catch (error) {
+                console.error('Error fetching analytics data:', error)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchAnalyticsData()
+    }, [])
 
     return (
         <div className="relative space-y-4">
-            <PageHeading heading={'Dashboard'} />
+            <PageHeading heading={'Shop Analytics Dashboard'} />
 
             <span className="absolute -left-4 -right-4 -top-8 -z-[1]">
                 <Image
@@ -121,7 +324,7 @@ const Home = () => {
                                 <div className="shrink-0 space-y-5 sm:space-y-12">
                                     <div className="space-y-5">
                                         <h2 className="text-base/5 text-black">
-                                            Sales Overview
+                                            Revenue Overview
                                         </h2>
                                         <p className="!mt-1.5 text-xs/tight font-medium">
                                             10 March 2024 - 10 April 2024
@@ -175,7 +378,7 @@ const Home = () => {
                                     </div>
                                     <div className="space-y-4 rounded-lg bg-gray-200 p-5">
                                         <h3 className="text-[26px]/8 text-black">
-                                            $75,485.57
+                                            ₹{isLoading ? '0.00' : analytics.totalRevenue.toFixed(2)}
                                         </h3>
                                         <div className="flex items-center gap-2.5">
                                             <Badge
@@ -184,10 +387,10 @@ const Home = () => {
                                                 className="rounded-lg font-semibold"
                                             >
                                                 <TrendingUp />
-                                                15.15%
+                                                {analytics.revenueGrowthRate}%
                                             </Badge>
                                             <span className="text-xs/tight">
-                                                + $150.48 Increased
+                                                + ₹{(analytics.totalRevenue * analytics.revenueGrowthRate / 100).toFixed(2)} Increased
                                             </span>
                                         </div>
                                     </div>
@@ -201,348 +404,124 @@ const Home = () => {
                             </div>
                             <div className="grid grid-cols-2 divide-x divide-y divide-gray-300 border-t border-gray-300 sm:grid-cols-4 sm:divide-y-0">
                                 <div className="space-y-5 bg-gradient-to-b from-success/[2%] to-success/0 px-4 py-6 sm:px-[18px] sm:py-8">
-                                    <IconChart />
+                                    <Users className="h-10 w-10 text-success" />
                                     <p className="leading-tight">
-                                        Avg. monthly growing
+                                        Total Users
                                     </p>
                                     <p className="!mt-3 text-xl/6 text-black">
-                                        5.24%
+                                        {analytics.totalUsers}
                                     </p>
                                 </div>
                                 <div className="space-y-5 !border-t-0 bg-gradient-to-b from-danger/[2%] to-danger/0 px-4 py-6 sm:px-[18px] sm:py-8">
-                                    <IconGoalFlag />
+                                    <DollarSign className="h-10 w-10 text-danger" />
                                     <p className="leading-tight">
-                                        Rebalance accuracy
+                                        Total Profit
                                     </p>
                                     <p className="!mt-3 text-xl/6 text-black">
-                                        75%
+                                        ₹{isLoading ? '0.00' : analytics.totalProfit.toFixed(2)}
                                     </p>
                                 </div>
                                 <div className="space-y-5 bg-gradient-to-b from-warning/[2%] to-warning/0 px-4 py-6 sm:px-[18px] sm:py-8">
-                                    <IconTrophy />
+                                    <Expense className="h-10 w-10 text-warning" />
                                     <p className="leading-tight">
-                                        Portfolio score
+                                        Total Expenses
                                     </p>
                                     <p className="!mt-3 text-xl/6 text-black">
-                                        87
-                                        <span className="text-base/5 text-gray-600">
-                                            /100
-                                        </span>
+                                        ₹{isLoading ? '0.00' : analytics.totalExpenses.toFixed(2)}
                                     </p>
                                 </div>
                                 <div className="space-y-5 bg-gradient-to-b from-primary/[2%] to-primary/0 px-4 py-6 sm:px-[18px] sm:py-8">
-                                    <IconFile />
+                                    <BarChart2 className="h-10 w-10 text-primary" />
                                     <p className="leading-tight">
-                                        Resilience index
+                                        Inventory Items
                                     </p>
                                     <p className="!mt-3 text-xl/6 text-black">
-                                        0.45
+                                        {analytics.totalProducts + analytics.totalServices}
                                     </p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
                     <div className="grid shrink-0 gap-4 sm:grid-cols-2 xl:w-[372px] xl:grid-cols-1">
-                        <OnlineSalesAreaChart isShowTitle={false} />
+                        <OnlineSalesAreaChart 
+                            isShowTitle={false} 
+                            customData={analytics.salesByMonth}
+                            customTitle="Monthly Sales"
+                            customAmount={analytics.totalRevenue}
+                            customGrowth={analytics.revenueGrowthRate}
+                        />
 
-                        <DailySalesBarChart isShowTitle={true} />
+                        <DailySalesBarChart 
+                            isShowTitle={true}
+                            customData={analytics.dailySales}
+                        />
                     </div>
                 </div>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-                    <Card>
-                        <div className="space-y-5 p-4 xl:p-5 font-semibold">
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <Card className="xl:col-span-2">
+                        <CardHeader className="px-6 py-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="leading-tight">Total Sales</h3>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <button type="button" className="inline-flex">
-                                            <Ellipsis className="size-4 text-black transition hover:text-gray" />
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        align="end"
-                                        className="w-auto space-y-1.5 p-1.5"
-                                    >
-                                        <button
-                                            type="button"
-                                            className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs/tight font-medium text-black hover:bg-light-theme"
-                                        >
-                                            Edit Report
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs/tight font-medium text-black hover:bg-light-theme"
-                                        >
-                                            Mark as done
-                                        </button>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <h4 className="text-xl/6 font-bold text-black">
-                                $15,140.00
-                            </h4>
-                            <div className="flex items-center gap-2.5">
-                                <Badge
-                                    variant={'green'}
-                                    size={'small'}
-                                    className="rounded-lg font-semibold"
-                                >
-                                    <TrendingUp />
-                                    78.88%
-                                </Badge>
-                                <span className="text-xs/tight">
-                                    + 26% Today
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between rounded-b-lg bg-gray-200 px-4 xl:px-5 py-4">
-                            <Link
-                                href="#"
-                                className="font-semibold leading-tight hover:text-black"
-                            >
-                                View Report
-                            </Link>
-                            <Link href="#">
-                                <ArrowRight className="size-[18px] shrink-0 text-black hover:text-gray" />
-                            </Link>
-                        </div>
-                    </Card>
-                    <Card>
-                        <div className="space-y-5 p-4 xl:p-5 font-semibold">
-                            <div className="flex items-center justify-between">
-                                <h3 className="leading-tight">Total Orders</h3>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <button type="button" className="inline-flex">
-                                            <Ellipsis className="size-4 text-black transition hover:text-gray" />
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        align="end"
-                                        className="w-auto space-y-1.5 p-1.5"
-                                    >
-                                        <button
-                                            type="button"
-                                            className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs/tight font-medium text-black hover:bg-light-theme"
-                                        >
-                                            Edit Report
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs/tight font-medium text-black hover:bg-light-theme"
-                                        >
-                                            Mark as done
-                                        </button>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <h4 className="text-xl/6 font-bold text-black">
-                                24,576
-                            </h4>
-                            <div className="flex items-center gap-2.5">
-                                <Badge
-                                    variant={'red'}
-                                    size={'small'}
-                                    className="rounded-lg font-semibold"
-                                >
-                                    <TrendingDown />
-                                    47.10%
-                                </Badge>
-                                <span className="text-xs/tight">
-                                    - 15,145 Today
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between rounded-b-lg bg-gray-200 px-4 xl:px-5 py-4">
-                            <Link
-                                href="#"
-                                className="font-semibold leading-tight hover:text-black"
-                            >
-                                View Report
-                            </Link>
-                            <Link href="#">
-                                <ArrowRight className="size-[18px] shrink-0 text-black hover:text-gray" />
-                            </Link>
-                        </div>
-                    </Card>
-                    <Card>
-                        <div className="space-y-5 p-4 xl:p-5 font-semibold">
-                            <div className="flex items-center justify-between">
-                                <h3 className="leading-tight">Visitor</h3>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <button type="button" className="inline-flex">
-                                            <Ellipsis className="size-4 text-black transition hover:text-gray" />
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        align="end"
-                                        className="w-auto space-y-1.5 p-1.5"
-                                    >
-                                        <button
-                                            type="button"
-                                            className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs/tight font-medium text-black hover:bg-light-theme"
-                                        >
-                                            Edit Report
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs/tight font-medium text-black hover:bg-light-theme"
-                                        >
-                                            Mark as done
-                                        </button>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <h4 className="text-xl/6 font-bold text-black">
-                                10,140
-                            </h4>
-                            <div className="flex items-center gap-2.5">
-                                <Badge
-                                    variant={'green'}
-                                    size={'small'}
-                                    className="rounded-lg font-semibold"
-                                >
-                                    <TrendingUp />
-                                    2.15%
-                                </Badge>
-                                <span className="text-xs/tight">
-                                    + 1,040 Today
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between rounded-b-lg bg-gray-200 px-4 xl:px-5 py-4">
-                            <Link
-                                href="#"
-                                className="font-semibold leading-tight hover:text-black"
-                            >
-                                View Report
-                            </Link>
-                            <Link href="#">
-                                <ArrowRight className="size-[18px] shrink-0 text-black hover:text-gray" />
-                            </Link>
-                        </div>
-                    </Card>
-                    <Card>
-                        <div className="space-y-5 p-4 xl:p-5 font-semibold">
-                            <div className="flex items-center justify-between">
-                                <h3 className="leading-tight">Refunded</h3>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <button type="button" className="inline-flex">
-                                            <Ellipsis className="size-4 text-black transition hover:text-gray" />
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        align="end"
-                                        className="w-auto space-y-1.5 p-1.5"
-                                    >
-                                        <button
-                                            type="button"
-                                            className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs/tight font-medium text-black hover:bg-light-theme"
-                                        >
-                                            Edit Report
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs/tight font-medium text-black hover:bg-light-theme"
-                                        >
-                                            Mark as done
-                                        </button>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                            <h4 className="text-xl/6 font-bold text-black">
-                                1,240
-                            </h4>
-                            <div className="flex items-center gap-2.5">
-                                <Badge
-                                    variant={'green'}
-                                    size={'small'}
-                                    className="rounded-lg font-semibold"
-                                >
-                                    <TrendingUp />
-                                    11.40%
-                                </Badge>
-                                <span className="text-xs/tight">
-                                    + 540 Today
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between rounded-b-lg bg-gray-200 px-4 xl:px-5 py-4">
-                            <Link
-                                href="#"
-                                className="font-semibold leading-tight hover:text-black"
-                            >
-                                View Report
-                            </Link>
-                            <Link href="#">
-                                <ArrowRight className="size-[18px] shrink-0 text-black hover:text-gray" />
-                            </Link>
-                        </div>
-                    </Card>
-                </div>
-                <div className="mt-4 flex flex-col gap-4 md:flex-row">
-                    <Card className="grow overflow-x-auto shadow-sm">
-                        <CardHeader className="flex items-center justify-between px-5 py-3.5">
-                            <h2 className="whitespace-nowrap text-base/5 font-semibold text-black">
-                                Order List
-                            </h2>
-                            <div className="flex items-center gap-2 sm:gap-4">
-                                <div id="search-table" hidden></div>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant={'outline'}
-                                        >
-                                            Last 30 Days
-                                            <ChevronDown />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto space-y-1.5 p-1.5">
-                                        <button
-                                            type="button"
-                                            className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs/tight font-medium text-black hover:bg-light-theme"
-                                        >
-                                            Last 6 month
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="block w-full rounded-lg px-2.5 py-1.5 text-left text-xs/tight font-medium text-black hover:bg-light-theme"
-                                        >
-                                            1 year ago
-                                        </button>
-                                    </PopoverContent>
-                                </Popover>
+                                <h3 className="text-base/5 font-semibold text-black">
+                                    Recent Transactions
+                                </h3>
                                 <Button
-                                    type="button"
-                                    variant={'outline'}
+                                    className="group rounded-3xl px-3 py-1 text-xs text-gray-600 transition hover:border-primary hover:text-primary"
+                                    size="sm"
+                                    variant="outline"
+                                    asChild
                                 >
-                                    <Download />
-                                    <span className="hidden sm:block">
-                                        Export
-                                    </span>
+                                    <Link href="/invoice/list">
+                                        See All
+                                        <ArrowRight className="ml-1 size-3.5 transition group-hover:translate-x-0.5" />
+                                    </Link>
                                 </Button>
                             </div>
                         </CardHeader>
-                        <CardContent>
-                            <DataTable
-                                columns={dashboardcolumns}
-                                data={data}
-                                filterField={'sales_id'}
-                                isRemovePagination={false}
-                            />
+                        <CardContent className="p-0 pb-1">
+                            <div id="search-table" className="px-6 py-3"></div>
+                            {!isLoading && (
+                                <div className="w-full">
+                                    <DataTable
+                                        columns={dashboardcolumns}
+                                        data={analytics.recentTransactions}
+                                        filterField="sales_id"
+                                    />
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
-                    <DistributionRadialStackedChart
-                        isShowTitle={false}
-                        className="bg-gradient-to-b from-gray-300 to-gray-300/0 md:w-[372px]"
-                    />
+                    <Card>
+                        <CardHeader className="px-6 py-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-base/5 font-semibold text-black">
+                                    Category Distribution
+                                </h3>
+                                <Button
+                                    className="group rounded-3xl px-3 py-1 text-xs text-gray-600 transition hover:border-primary hover:text-primary"
+                                    size="sm"
+                                    variant="outline"
+                                    asChild
+                                >
+                                    <Link href="/inventory/stock/manage">
+                                        View Inventory
+                                        <ArrowRight className="ml-1 size-3.5 transition group-hover:translate-x-0.5" />
+                                    </Link>
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <DistributionRadialStackedChart
+                                isShowTitle={false}
+                                customData={analytics.categoryDistribution}
+                            />
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         </div>
     )
 }
+
 export default Home

@@ -33,13 +33,37 @@ export function OnlineSalesAreaChart({
     isCardHeaderTitle = true,
     isCardHeaderSubTitle = true,
     isShowTitle = true,
+    customData,
+    customTitle,
+    customAmount,
+    customGrowth,
 }: {
     className?: string
     isCardHeader?: boolean
     isCardHeaderTitle?: boolean
     isCardHeaderSubTitle?: boolean
     isShowTitle?: boolean
+    customData?: { month: string; value: number }[]
+    customTitle?: string
+    customAmount?: number
+    customGrowth?: number
 }) {
+    // Transform custom data to match the expected format for the chart
+    const transformedData = customData?.map(item => ({
+        month: item.month,
+        desktop: item.value,
+    })) || chartData;
+
+    // Calculate total from custom data or use default
+    const totalAmount = customAmount !== undefined 
+        ? `$${customAmount.toFixed(2)}` 
+        : '$15,244.00';
+    
+    // Use custom growth rate or default
+    const growthRate = customGrowth !== undefined
+        ? customGrowth.toFixed(2)
+        : '15.15';
+
     return (
         <Card className="relative space-y-9 p-5 shadow-sm  flex flex-col justify-between">
             {isCardHeader && (
@@ -47,13 +71,13 @@ export function OnlineSalesAreaChart({
                     <div className="space-y-2.5">
                         {isCardHeaderTitle && (
                             <p className="text-[10px]/none uppercase">
-                                total online sales
+                                {customTitle || 'total online sales'}
                             </p>
                         )}
                         {isCardHeaderSubTitle && (
                             <h3 className="text-[26px]/8 text-black">
-                                $15,244
-                                <span className="text-gray-600">.00</span>
+                                {totalAmount.split('.')[0]}
+                                <span className="text-gray-600">.{totalAmount.split('.')[1] || '00'}</span>
                             </h3>
                         )}
                     </div>
@@ -63,20 +87,20 @@ export function OnlineSalesAreaChart({
                         className="rounded-lg font-semibold"
                     >
                         <TrendingUp />
-                        15.15%
+                        {growthRate}%
                     </Badge>
                 </div>
             )}
             {isShowTitle && (
                 <span className="text-base/5 font-semibold text-black">
-                    Simple Area
+                    {customTitle || 'Simple Area'}
                 </span>
             )}
             <CardContent className="w-full">
                 <ChartContainer config={chartConfig} className="w-full">
                     <AreaChart
                         accessibilityLayer
-                        data={chartData}
+                        data={transformedData}
                         margin={{
                             left: 12,
                             right: 12,

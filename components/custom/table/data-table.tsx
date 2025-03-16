@@ -92,6 +92,7 @@ export function DataTable<TData, TValue>({
             <div className="w-full overflow-hidden rounded-b-lg bg-white shadow-sm">
                 <div>
                     {mounted &&
+                        document.getElementById('search-table') &&
                         createPortal(
                             <>
                                 <InputSearch
@@ -99,7 +100,6 @@ export function DataTable<TData, TValue>({
                                     value={
                                         (table
                                             .getColumn(filterField)
-
                                             ?.getFilterValue() as string) ?? ''
                                     }
                                     onChange={(event) =>
