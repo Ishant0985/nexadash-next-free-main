@@ -1,15 +1,29 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { db } from '@/firebaseClient';
-import { collection, getDocs, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
-import { toast } from 'react-hot-toast';
+import { useState, useEffect } from 'react';
+import PageHeading from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { format } from 'date-fns';
+import { CalendarCheck, Plus, Edit, Trash2, Search, ChevronDown, MoreHorizontal } from 'lucide-react';
+import Link from 'next/link';
+import { db } from '@/firebaseClient';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { toast } from 'react-hot-toast';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Card,
+  CardContent,
+} from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,549 +33,431 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, ChevronDown, ArrowUpDown, Eye, Trash2, Search, Plus } from 'lucide-react';
-import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
-import PageHeading from '@/components/layout/page-heading';
+} from '@/components/ui/dropdown-menu';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import { useRouter } from 'next/navigation';
 
 interface Customer {
   id: string;
   customerId: string;
   firstName: string;
-  lastName: string;
+  lastName?: string;
   email: string;
   phone: string;
   usertype: string;
+  createdAt: string | number | Date;
   country?: string;
   state?: string;
   district?: string;
   city?: string;
   pincode?: string;
-  createdAt: string;
-  updatedAt?: string;
+  [key: string]: any; // For other potential properties
 }
 
 export default function ManageCustomers() {
   const router = useRouter();
+  const [date, setDate] = useState<Date | undefined>();
+  const [mainDate, setMainDate] = useState<Date | undefined>();
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined, to: Date | undefined }>({
-    from: undefined,
-    to: undefined,
-  });
-  const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
+  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [selectAll, setSelectAll] = useState(false);
-  const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  
+  const [itemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+
   // Sorting
-  const [sortField, setSortField] = useState<keyof Customer>('createdAt');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortField, setSortField] = useState('customerId');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const fetchCustomers = async () => {
+    setIsLoading(true);
+    try {
+      const querySnapshot = await getDocs(collection(db, 'customers'));
+      const customerList = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Customer[];
+      setCustomers(customerList);
+      toast.success("Customers loaded successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to fetch customers.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchCustomers();
   }, []);
 
   useEffect(() => {
-    applyFilters();
-  }, [customers, searchTerm, dateRange]);
-
-  const fetchCustomers = async () => {
-    setLoading(true);
-    try {
-      const customersCollection = collection(db, 'customers');
-      const customersSnapshot = await getDocs(query(customersCollection, orderBy('createdAt', 'desc')));
-      
-      if (customersSnapshot.empty) {
-        setCustomers([]);
-        setFilteredCustomers([]);
-        toast.error('No customers found');
-      } else {
-        const customersList = customersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Customer));
-        
-        setCustomers(customersList);
-        setFilteredCustomers(customersList);
-        toast.success(`${customersList.length} customers loaded`);
-      }
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      toast.error('Failed to load customers');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const applyFilters = () => {
     let filtered = [...customers];
     
     // Apply search filter
     if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(customer => 
-        customer.customerId?.toLowerCase().includes(searchLower) ||
-        customer.firstName?.toLowerCase().includes(searchLower) ||
-        customer.lastName?.toLowerCase().includes(searchLower) ||
-        customer.email?.toLowerCase().includes(searchLower) ||
-        customer.phone?.toLowerCase().includes(searchLower)
+        (customer.customerId?.toLowerCase().includes(term)) ||
+        (customer.firstName?.toLowerCase().includes(term)) ||
+        (customer.lastName?.toLowerCase().includes(term)) ||
+        (customer.email?.toLowerCase().includes(term)) ||
+        (customer.phone?.includes(term))
       );
     }
-    
-    // Apply date filter
-    if (dateRange.from || dateRange.to) {
+
+    // Apply date filter if both dates are selected
+    if (date && mainDate) {
       filtered = filtered.filter(customer => {
-        const createdDate = new Date(customer.createdAt);
-        
-        if (dateRange.from && dateRange.to) {
-          return createdDate >= dateRange.from && createdDate <= dateRange.to;
-        } else if (dateRange.from) {
-          return createdDate >= dateRange.from;
-        } else if (dateRange.to) {
-          return createdDate <= dateRange.to;
-        }
-        
-        return true;
+        const customerDate = new Date(customer.createdAt);
+        return customerDate >= date && customerDate <= mainDate;
       });
     }
-    
+
     // Apply sorting
     filtered.sort((a, b) => {
-      let valueA = a[sortField];
-      let valueB = b[sortField];
-      
-      // Special case for customer name (combining first and last name)
-      if (sortField === 'firstName') {
-        valueA = `${a.firstName} ${a.lastName || ''}`.trim();
-        valueB = `${b.firstName} ${b.lastName || ''}`.trim();
+      let valueA, valueB;
+
+      if (sortField === 'name') {
+        valueA = `${a.firstName || ''} ${a.lastName || ''}`.trim();
+        valueB = `${b.firstName || ''} ${b.lastName || ''}`.trim();
+      } else if (sortField === 'createdAt') {
+        valueA = new Date(a.createdAt).getTime();
+        valueB = new Date(b.createdAt).getTime();
+      } else {
+        valueA = a[sortField] || '';
+        valueB = b[sortField] || '';
       }
-      
-      if (!valueA) return sortDirection === 'asc' ? -1 : 1;
-      if (!valueB) return sortDirection === 'asc' ? 1 : -1;
-      
-      if (typeof valueA === 'string' && typeof valueB === 'string') {
-        return sortDirection === 'asc' 
-          ? valueA.localeCompare(valueB)
-          : valueB.localeCompare(valueA);
+
+      if (sortDirection === 'asc') {
+        return valueA > valueB ? 1 : -1;
+      } else {
+        return valueA < valueB ? 1 : -1;
       }
-      
-      // Default comparison
-      if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
-      if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
-      return 0;
     });
-    
+
     setFilteredCustomers(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
-  };
+    setTotalPages(Math.ceil(filtered.length / itemsPerPage));
+    setCurrentPage(1);
+  }, [customers, searchTerm, date, mainDate, sortField, sortDirection, itemsPerPage]);
 
-  const handleSort = (field: keyof Customer) => {
-    const isAsc = sortField === field && sortDirection === 'asc';
-    setSortDirection(isAsc ? 'desc' : 'asc');
-    setSortField(field);
-    
-    // Re-apply filters with new sort
-    setTimeout(() => {
-      applyFilters();
-    }, 0);
-  };
-
-  const handleDeleteCustomer = async () => {
-    if (!deleteCustomerId) return;
-    
-    try {
-      await deleteDoc(doc(db, 'customers', deleteCustomerId));
-      setCustomers(prevCustomers => 
-        prevCustomers.filter(customer => customer.id !== deleteCustomerId)
-      );
-      toast.success('Customer deleted successfully');
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-      toast.error('Failed to delete customer');
-    } finally {
-      setDeleteCustomerId(null);
-      setDeleteDialogOpen(false);
-    }
-  };
-
-  const confirmDelete = (id: string) => {
-    setDeleteCustomerId(id);
+  const handleDeleteClick = (customer: Customer) => {
+    setCustomerToDelete(customer);
     setDeleteDialogOpen(true);
   };
 
-  const handleViewDetails = (id: string) => {
-    router.push(`/customer/details?id=${id}`);
-  };
-
-  const handleAddCustomer = () => {
-    router.push('/customer/add');
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    setSelectAll(checked);
+  const handleDelete = async () => {
+    if (!customerToDelete) return;
     
-    if (checked) {
-      const currentPageCustomers = getCurrentPageItems();
-      const idsSet = new Set<string>();
-      currentPageCustomers.forEach(customer => idsSet.add(customer.id));
-      setSelectedCustomers(idsSet);
-    } else {
-      setSelectedCustomers(new Set());
-    }
-  };
-
-  const handleSelectCustomer = (id: string, checked: boolean) => {
-    const newSelected = new Set(selectedCustomers);
-    
-    if (checked) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
-    }
-    
-    setSelectedCustomers(newSelected);
-    
-    // Update selectAll based on whether all current page items are selected
-    const currentPageIds = getCurrentPageItems().map(customer => customer.id);
-    const allSelected = currentPageIds.every(id => newSelected.has(id));
-    setSelectAll(allSelected && currentPageIds.length > 0);
-  };
-
-  const getCurrentPageItems = () => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredCustomers.slice(startIndex, endIndex);
-  };
-
-  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
-
-  const handleBulkDelete = () => {
-    // Implementation for bulk delete would go here
-    toast.error('Bulk delete not implemented yet');
-  };
-
-  const formatDate = (dateString: string) => {
     try {
-      return format(new Date(dateString), 'MMM dd, yyyy');
-    } catch (e) {
+      await deleteDoc(doc(db, 'customers', customerToDelete.id));
+      setCustomers(customers.filter((c) => c.id !== customerToDelete.id));
+      toast.success("Customer deleted successfully!");
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+    } catch (error) {
+      console.error(error);
+      toast.error("Error deleting customer.");
+    }
+  };
+
+  // Handle pagination
+  const paginate = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+  };
+
+  // Get current customers
+  const getCurrentCustomers = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredCustomers.slice(startIndex, startIndex + itemsPerPage);
+  };
+
+  // Handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const formatDate = (date: string | number | Date) => {
+    try {
+      return format(new Date(date), 'MMM dd, yyyy');
+    } catch (error) {
       return 'Invalid date';
     }
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeading heading="Manage Customers" />
-      
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <div className="flex items-center space-x-2 w-full md:w-auto">
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              type="text"
-              placeholder="Search customers..."
-              className="pl-9"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="justify-start whitespace-nowrap">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from && dateRange.to ? (
-                  `${format(dateRange.from, 'LLL dd, y')} - ${format(dateRange.to, 'LLL dd, y')}`
-                ) : dateRange.from ? (
-                  `From ${format(dateRange.from, 'LLL dd, y')}`
-                ) : dateRange.to ? (
-                  `Until ${format(dateRange.to, 'LLL dd, y')}`
-                ) : (
-                  "Date range"
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange.from}
-                selected={{ from: dateRange.from, to: dateRange.to }}
-                onSelect={(range) => setDateRange({ 
-                  from: range?.from, 
-                  to: range?.to 
-                })}
-                numberOfMonths={2}
-              />
-              <div className="flex items-center justify-end gap-2 p-3 border-t">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setDateRange({ from: undefined, to: undefined })}
-                >
-                  Clear
-                </Button>
-                <Button size="sm" onClick={() => document.body.click()}>
-                  Apply
-                </Button>
+    <div className="space-y-4">
+      <PageHeading heading={'Manage Customers'} />
+
+      <div className="min-h-[calc(100vh_-_160px)] w-full">
+        <Card>
+          <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  type="text"
+                  placeholder="Search customers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 w-[250px]"
+                />
               </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-        
-        <div className="flex space-x-2">
-          {selectedCustomers.size > 0 && (
-            <Button variant="outline" size="sm" onClick={handleBulkDelete}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Selected
-            </Button>
-          )}
-          
-          <Button onClick={handleAddCustomer}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Customer
-          </Button>
-        </div>
-      </div>
-      
-      <Card>
-        <CardContent className="p-0">
-          <div className="rounded-md border">
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant={'outline'} size="sm">
+                      <CalendarCheck className="mr-2 h-4 w-4" />
+                      {date ? format(date, 'PP') : <span>Start date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+                  </PopoverContent>
+                </Popover>
+                <span className="text-xs font-medium text-gray-700">To</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant={'outline'} size="sm">
+                      <CalendarCheck className="mr-2 h-4 w-4" />
+                      {mainDate ? format(mainDate, 'PPP') : <span>End date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar mode="single" selected={mainDate} onSelect={setMainDate} initialFocus />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Link href="/customer/add">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Customer
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox 
-                      checked={selectAll} 
-                      onCheckedChange={handleSelectAll}
-                      aria-label="Select all"
-                    />
-                  </TableHead>
-                  <TableHead className="w-[180px]">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => handleSort('customerId')}
-                      className="flex items-center"
-                    >
-                      Customer ID
-                      {sortField === 'customerId' && (
-                        <ChevronDown className={`ml-2 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
-                      )}
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => handleSort('firstName')}
-                      className="flex items-center"
-                    >
-                      Name
-                      {sortField === 'firstName' && (
-                        <ChevronDown className={`ml-2 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
-                      )}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => handleSort('email')}
-                      className="flex items-center"
-                    >
-                      Email/Phone
-                      {sortField === 'email' && (
-                        <ChevronDown className={`ml-2 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
-                      )}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => handleSort('usertype')}
-                      className="flex items-center"
-                    >
-                      Type
-                      {sortField === 'usertype' && (
-                        <ChevronDown className={`ml-2 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
-                      )}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="hidden lg:table-cell">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => handleSort('createdAt')}
-                      className="flex items-center"
-                    >
-                      Created At
-                      {sortField === 'createdAt' && (
-                        <ChevronDown className={`ml-2 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
-                      )}
-                    </Button>
-                  </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableCell
+                    className="cursor-pointer"
+                    onClick={() => handleSort('customerId')}
+                  >
+                    Customer ID
+                    {sortField === 'customerId' && (
+                      <ChevronDown className={`ml-1 h-4 w-4 inline ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className="cursor-pointer"
+                    onClick={() => handleSort('name')}
+                  >
+                    Name
+                    {sortField === 'name' && (
+                      <ChevronDown className={`ml-1 h-4 w-4 inline ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className="cursor-pointer"
+                    onClick={() => handleSort('email')}
+                  >
+                    Email
+                    {sortField === 'email' && (
+                      <ChevronDown className={`ml-1 h-4 w-4 inline ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className="cursor-pointer"
+                    onClick={() => handleSort('phone')}
+                  >
+                    Phone
+                    {sortField === 'phone' && (
+                      <ChevronDown className={`ml-1 h-4 w-4 inline ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className="cursor-pointer"
+                    onClick={() => handleSort('usertype')}
+                  >
+                    User Type
+                    {sortField === 'usertype' && (
+                      <ChevronDown className={`ml-1 h-4 w-4 inline ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className="cursor-pointer"
+                    onClick={() => handleSort('createdAt')}
+                  >
+                    Created At
+                    {sortField === 'createdAt' && (
+                      <ChevronDown className={`ml-1 h-4 w-4 inline ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`} />
+                    )}
+                  </TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      <div className="flex justify-center items-center">
-                        <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full" role="status">
-                          <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <span className="ml-2">Loading customers...</span>
-                      </div>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      Loading customers...
                     </TableCell>
                   </TableRow>
-                ) : filteredCustomers.length === 0 ? (
+                ) : getCurrentCustomers().length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      No customers found.
+                    <TableCell colSpan={7} className="text-center py-8">
+                      No customers found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  getCurrentPageItems().map((customer) => (
-                    <TableRow key={customer.id} className="cursor-pointer hover:bg-gray-50">
-                      <TableCell className="p-4">
-                        <Checkbox 
-                          checked={selectedCustomers.has(customer.id)}
-                          onCheckedChange={(checked) => 
-                            handleSelectCustomer(customer.id, checked === true)
-                          }
-                          aria-label={`Select ${customer.firstName}`}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium" onClick={() => handleViewDetails(customer.id)}>
-                        {customer.customerId}
-                      </TableCell>
-                      <TableCell onClick={() => handleViewDetails(customer.id)}>
-                        {`${customer.firstName} ${customer.lastName || ''}`}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell" onClick={() => handleViewDetails(customer.id)}>
-                        <div className="flex flex-col">
-                          {customer.email && (
-                            <span className="text-sm truncate max-w-[200px]">{customer.email}</span>
-                          )}
-                          {customer.phone && (
-                            <span className="text-sm text-gray-500">{customer.phone}</span>
-                          )}
+                  getCurrentCustomers().map((customer) => (
+                    <TableRow key={customer.id} className="hover:bg-gray-50">
+                      <TableCell className="font-medium">{customer.customerId}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-sm">
+                            {(customer.firstName?.charAt(0) || '?').toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium">{`${customer.firstName || ''} ${customer.lastName || ''}`}</p>
+                            <p className="text-xs text-gray-500">
+                              {customer.city ? `${customer.city}, ${customer.country || ''}` : 'No location info'}
+                            </p>
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell" onClick={() => handleViewDetails(customer.id)}>
-                        <Badge variant="outline">
-                          {customer.usertype.charAt(0).toUpperCase() + customer.usertype.slice(1)}
-                        </Badge>
+                      <TableCell>{customer.email}</TableCell>
+                      <TableCell>{customer.phone}</TableCell>
+                      <TableCell>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {customer.usertype}
+                        </span>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell" onClick={() => handleViewDetails(customer.id)}>
-                        {formatDate(customer.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleViewDetails(customer.id)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              confirmDelete(customer.id);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      <TableCell>{formatDate(customer.createdAt)}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/customer/details?id=${customer.id}`)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteClick(customer)}
+                              className="text-red-600 hover:text-red-800 focus:text-red-800"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
                 )}
               </TableBody>
             </Table>
-          </div>
-        </CardContent>
-        
+          </CardContent>
+        </Card>
+
+        {/* Pagination */}
         {filteredCustomers.length > 0 && (
-          <CardFooter className="flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              Showing {Math.min(itemsPerPage, filteredCustomers.length)} of {filteredCustomers.length} customers
-            </div>
-            <div className="flex items-center space-x-6 lg:space-x-8">
-              <div className="flex items-center space-x-2">
-                <p className="text-sm font-medium">Rows per page</p>
-                <select
-                  className="h-8 w-16 rounded-md border border-input bg-transparent"
-                  value={itemsPerPage}
-                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
-              <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                Page {currentPage} of {totalPages}
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <span className="sr-only">Go to previous page</span>
-                  <ChevronDown className="h-4 w-4 rotate-90" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-8 w-8 p-0"
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  <span className="sr-only">Go to next page</span>
-                  <ChevronDown className="h-4 w-4 -rotate-90" />
-                </Button>
-              </div>
-            </div>
-          </CardFooter>
+          <div className="mt-4 flex justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => paginate(Math.max(1, currentPage - 1))}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  // Show 5 pages max, centered around current page
+                  let pageNum = currentPage;
+                  if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  // Ensure pageNum is within valid range
+                  if (pageNum > 0 && pageNum <= totalPages) {
+                    return (
+                      <PaginationItem key={i}>
+                        <PaginationLink
+                          onClick={() => paginate(pageNum)}
+                          isActive={currentPage === pageNum}
+                        >
+                          {pageNum}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  }
+                  return null;
+                })}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         )}
-      </Card>
-      
+      </div>
+
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this customer? This action cannot be undone.
+              This will permanently delete the customer{' '}
+              <span className="font-semibold">{customerToDelete?.firstName} {customerToDelete?.lastName}</span>.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteCustomer}
-              className="bg-red-500 hover:bg-red-600"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

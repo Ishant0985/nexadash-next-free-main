@@ -337,7 +337,7 @@ export default function CustomerDetailsPage() {
               )}
             </div>
             <CardTitle className="text-xl">
-              {`${customer.firstName} ${customer.lastName || ''}`}
+              {`${customer.firstName} ${customer.lastName || '&rsquo;'}`}
             </CardTitle>
             <CardDescription>
               <Badge variant="outline" className="mt-2">
