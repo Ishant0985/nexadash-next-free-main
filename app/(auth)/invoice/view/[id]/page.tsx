@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Card,
@@ -12,6 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Download, Printer } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import Image from 'next/image';
 
 // Firebase imports
 import { db } from '@/firebaseClient';
@@ -124,6 +127,7 @@ export default function InvoiceViewPage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const invoiceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -195,11 +199,237 @@ export default function InvoiceViewPage() {
   }, [invoiceId, router]);
 
   const handlePrint = () => {
-    window.print();
+    if (!invoiceRef.current) {
+      toast.error('Could not print invoice');
+      return;
+    }
+
+    // Create a new window for printing just the invoice
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Pop-up blocked. Please allow pop-ups to print invoice.');
+      return;
+    }
+
+    // Get the HTML content of the invoice card
+    const invoiceContent = invoiceRef.current.innerHTML;
+
+    // Add styles for nice printing
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice ${invoice?.invoiceNumber || invoiceId}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+              margin: 0;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              padding: 10px;
+              border-bottom: 1px solid #ddd;
+              text-align: left;
+            }
+            th {
+              font-weight: bold;
+              background-color: #f9fafb;
+            }
+            .flex {
+              display: flex;
+            }
+            .flex-col {
+              display: flex;
+              flex-direction: column;
+            }
+            .justify-between {
+              justify-content: space-between;
+            }
+            .mb-8 {
+              margin-bottom: 2rem;
+            }
+            .mb-4 {
+              margin-bottom: 1rem;
+            }
+            .items-center {
+              align-items: center;
+            }
+            .grid {
+              display: grid;
+            }
+            .grid-cols-2 {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .grid-cols-3 {
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+            .gap-8 {
+              gap: 2rem;
+            }
+            .gap-4 {
+              gap: 1rem;
+            }
+            .p-6 {
+              padding: 1.5rem;
+            }
+            .text-right {
+              text-align: right;
+            }
+            .font-semibold {
+              font-weight: 600;
+            }
+            .text-gray-600 {
+              color: #4b5563;
+            }
+            .text-gray-500 {
+              color: #6b7280;
+            }
+            .text-red-600 {
+              color: #dc2626;
+            }
+            .text-green-600 {
+              color: #059669;
+            }
+            .text-lg {
+              font-size: 1.125rem;
+            }
+            .text-xl {
+              font-size: 1.25rem;
+            }
+            .my-2 {
+              margin-top: 0.5rem;
+              margin-bottom: 0.5rem;
+            }
+            hr {
+              border: 0;
+              border-top: 1px solid #e5e7eb;
+              margin: 1rem 0;
+            }
+            .invoice-logo {
+              width: 48px;
+              height: 48px;
+              border-radius: 50%;
+              object-fit: cover;
+              margin-right: 1rem;
+            }
+            .company-logo-container {
+              display: inline-block;
+              margin-right: 1rem;
+            }
+            @media print {
+              body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="p-6">
+            ${invoiceContent.replace(/<img[^>]*>/g, '<img src="/images/logo-footer.webp" class="invoice-logo" />')}
+          </div>
+          <script>
+            // Preload the logo image
+            const logoImg = new Image();
+            logoImg.src = '/images/logo-footer.webp';
+            
+            // Wait for all content to be fully loaded
+            document.addEventListener('DOMContentLoaded', function() {
+              // Add a small delay to ensure everything is rendered
+              setTimeout(function() {
+                // Check if all images are loaded
+                const allImagesLoaded = Array.from(document.images).every(img => img.complete);
+                
+                if (!allImagesLoaded) {
+                  // Wait for images to load if they're not ready
+                  const imageLoadPromises = Array.from(document.images).map(img => {
+                    if (img.complete) return Promise.resolve();
+                    return new Promise(resolve => {
+                      img.onload = resolve;
+                      img.onerror = resolve; // Continue even if image fails
+                    });
+                  });
+                  
+                  Promise.all(imageLoadPromises).then(() => {
+                    setTimeout(() => window.print(), 500);
+                  });
+                } else {
+                  // All images already loaded, proceed with printing
+                  setTimeout(() => window.print(), 500);
+                }
+                
+                // Only close after printing is complete or cancelled
+                window.addEventListener('afterprint', function() {
+                  setTimeout(function() {
+                    window.close();
+                  }, 1000);
+                });
+                
+                // Fallback in case afterprint event is not supported
+                setTimeout(function() {
+                  window.close();
+                }, 5000);
+              }, 1000);
+            });
+          </script>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
   };
 
-  const handleDownload = () => {
-    toast.success('Download started');
+  const handleDownload = async () => {
+    if (!invoiceRef.current) {
+      toast.error('Could not generate PDF');
+      return;
+    }
+
+    toast.loading('Generating PDF...', { id: 'pdf-loading' });
+    
+    try {
+      // Set some styles for better PDF rendering
+      const originalStyle = invoiceRef.current.style.cssText;
+      invoiceRef.current.style.background = 'white';
+      
+      // Capture the invoice element as an image
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: 2, // Higher scale for better quality
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      // Restore original styles
+      invoiceRef.current.style.cssText = originalStyle;
+      
+      // Calculate dimensions
+      const imgWidth = 210; // A4 width in mm (210mm)
+      const pageHeight = 297; // A4 height in mm (297mm)
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Add the image to the PDF
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      
+      // Save the PDF
+      pdf.save(`Invoice_${invoice?.invoiceNumber || invoiceId}.pdf`);
+      
+      toast.dismiss('pdf-loading');
+      toast.success('PDF downloaded successfully!');
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      toast.dismiss('pdf-loading');
+      toast.error('Failed to generate PDF');
+    }
   };
 
   // Format the full address
@@ -277,14 +507,27 @@ export default function InvoiceViewPage() {
         </div>
       </div>
 
-      <Card className="mb-8">
+      <Card className="mb-8" ref={invoiceRef}>
         <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row justify-between mb-6">
-            <div>
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center">
+              <div className="h-12 w-12 relative rounded-full overflow-hidden bg-gray-100 mr-4 border">
+                <Image
+                  src="/images/invlogo.png" 
+                  alt="Company Logo"
+                  fill
+                  className="object-cover"
+                  sizes="48px"
+                />
+              </div>
+              <div>
+                <p className="text-gray-600 font-medium">Motor Auto Care</p>
+              </div>
+            </div>
+            <div className="text-right">
               <h2 className="text-xl font-semibold">
                 Invoice #{invoice.invoiceNumber}
               </h2>
-              <p className="text-gray-600">Moto Auto Care</p>
             </div>
           </div>
 

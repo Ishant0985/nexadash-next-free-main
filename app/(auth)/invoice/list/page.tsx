@@ -99,8 +99,10 @@ interface Invoice {
 
 interface Customer {
   id: string;
-  name: string;
-  email: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
   phone?: string;
   address?: string;
   city?: string;
@@ -108,6 +110,7 @@ interface Customer {
   country?: string;
   district?: string;
   pincode?: string;
+  customerId?: string;
 }
 
 interface Product {
@@ -304,7 +307,10 @@ export default function InvoiceListPage() {
           // Add customer info
           if (invoiceData.customer && customersData[invoiceData.customer]) {
             const customer = customersData[invoiceData.customer];
-            invoiceData.customerName = customer.name;
+            // Create proper customer name from firstName and lastName if available
+            invoiceData.customerName = customer.firstName && customer.lastName 
+              ? `${customer.firstName} ${customer.lastName}`
+              : customer.firstName || customer.lastName || customer.name || 'Unknown';
             invoiceData.customerEmail = customer.email;
             invoiceData.customerPhone = customer.phone;
             invoiceData.customerAddress = customer.address;
@@ -677,7 +683,9 @@ export default function InvoiceListPage() {
                           </div>
                           <div>
                             <p className="font-medium">{invoice.customerName || 'Unknown'}</p>
-                            <p className="text-xs text-gray-500">{invoice.customerEmail || 'No email'}</p>
+                            <p className="text-xs text-gray-500">
+                              {invoice.customerEmail || (invoice.customerPhone ? invoice.customerPhone : 'No contact info')}
+                            </p>
                           </div>
                         </div>
                       </TableCell>

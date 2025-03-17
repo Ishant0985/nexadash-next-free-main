@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import PageHeading from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import AddressSelector from '@/components/custom/address-selector';
 import { db, getNextId } from '@/firebaseClient';
 import { collection, addDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function AddCustomers() {
   const router = useRouter();
@@ -26,6 +27,15 @@ export default function AddCustomers() {
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
   const [userType, setUserType] = useState('customer'); // Default to customer
+  const [redirectTarget, setRedirectTarget] = useState('/customer/manage');
+  const [contactType, setContactType] = useState<'email' | 'phone' | 'both'>('both');
+
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    if (queryParams.get('from') === 'invoice') {
+      setRedirectTarget('/invoice/create');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,8 +43,17 @@ export default function AddCustomers() {
       toast.error('First name is mandatory');
       return;
     }
-    if (!email && !phone) {
-      toast.error('Either email or phone number is mandatory');
+    
+    if (contactType === 'email' && !email) {
+      toast.error('Email is required based on your selected contact method');
+      return;
+    }
+    if (contactType === 'phone' && !phone) {
+      toast.error('Phone number is required based on your selected contact method');
+      return;
+    }
+    if (contactType === 'both' && (!email || !phone)) {
+      toast.error('Both email and phone number are required based on your selected contact method');
       return;
     }
     
@@ -43,11 +62,11 @@ export default function AddCustomers() {
       const profilePicURL = profilePic ? URL.createObjectURL(profilePic) : "";
       
       const customerData = {
-        customerId: `[C${customerId}]`,
+        customerId: `CT${customerId}`,
         firstName,
         lastName,
-        email,
-        phone,
+        email: contactType === 'phone' ? '' : email,
+        phone: contactType === 'email' ? '' : phone,
         profilePic: profilePicURL,
         country,
         state,
@@ -56,11 +75,20 @@ export default function AddCustomers() {
         pincode,
         usertype: userType,
         createdAt: new Date().toISOString(),
+        contactType,
+        searchTerms: [
+          `CT${customerId}`,
+          firstName.toLowerCase(),
+          lastName.toLowerCase(),
+          email.toLowerCase(),
+          phone,
+          `${firstName} ${lastName}`.toLowerCase()
+        ].filter(Boolean)
       };
 
       await addDoc(collection(db, 'customers'), customerData);
       toast.success('Customer added successfully');
-      router.push('/manage-customers');
+      router.push(redirectTarget);
     } catch (error) {
       console.error(error);
       toast.error("Error saving customer data.");
@@ -100,28 +128,60 @@ export default function AddCustomers() {
                 </div>
               </div>
 
-              <div className="space-y-2.5">
-                <label className="block font-semibold leading-tight text-black">
-                  Email
-                </label>
-                <Input
-                  type="email"
-                  placeholder="Enter email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
+              <div className="space-y-4">
+                <div className="space-y-2.5">
+                  <label className="block font-semibold leading-tight text-black">
+                    Contact Method
+                  </label>
+                  <RadioGroup 
+                    defaultValue="both" 
+                    value={contactType}
+                    onValueChange={(value) => setContactType(value as 'email' | 'phone' | 'both')}
+                    className="flex flex-col space-y-1"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="email" id="email-only" />
+                      <label htmlFor="email-only" className="cursor-pointer">Email Only</label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="phone" id="phone-only" />
+                      <label htmlFor="phone-only" className="cursor-pointer">Phone Only</label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="both" id="both-contact" />
+                      <label htmlFor="both-contact" className="cursor-pointer">Both Email and Phone</label>
+                    </div>
+                  </RadioGroup>
+                </div>
 
-              <div className="space-y-2.5">
-                <label className="block font-semibold leading-tight text-black">
-                  Phone Number
-                </label>
-                <PhoneInput
-                  country={'in'}
-                  value={phone}
-                  onChange={setPhone}
-                  inputStyle={{ width: '100%' }}
-                />
+                {(contactType === 'email' || contactType === 'both') && (
+                  <div className="space-y-2.5">
+                    <label className="block font-semibold leading-tight text-black">
+                      Email
+                    </label>
+                    <Input
+                      type="email"
+                      placeholder="Enter email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required={contactType === 'email'}
+                    />
+                  </div>
+                )}
+
+                {(contactType === 'phone' || contactType === 'both') && (
+                  <div className="space-y-2.5">
+                    <label className="block font-semibold leading-tight text-black">
+                      Phone Number
+                    </label>
+                    <PhoneInput
+                      country={'in'}
+                      value={phone}
+                      onChange={setPhone}
+                      inputStyle={{ width: '100%' }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2.5">

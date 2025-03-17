@@ -1,298 +1,587 @@
 "use client";
-import { useState, useEffect } from 'react';
-import PageHeading from '@/components/layout/page-heading';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { db } from '@/firebaseClient';
+import { collection, getDocs, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore';
+import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, ChevronDown, ArrowUpDown, Eye, Trash2, Search, Plus, MoreHorizontal } from 'lucide-react';
 import { format } from 'date-fns';
-import { CalendarCheck, Plus } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import PageHeading from '@/components/layout/page-heading';
 import Link from 'next/link';
-import { db } from '@/firebaseClient';
-import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import toast from 'react-hot-toast';
+import Image from 'next/image';
 
 interface StaffMember {
   id: string;
   staffId: string;
   name: string;
   role: string;
-  address: string;
   email: string;
   phone: string;
   joiningDate: string | number | Date;
   status: string;
-  [key: string]: any; // For other potential properties
+  salary: string;
+  country?: string;
+  state?: string;
+  district?: string;
+  city?: string;
+  pincode?: string;
+  profilePic?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
-interface StaffColumnProps {
-  getValue: () => any;
-}
-
-const staffColumns = [
-  { header: "Staff ID", accessorKey: "staffId" },
-  { header: "Name", accessorKey: "name" },
-  { header: "Role", accessorKey: "role" },
-  { header: "Location", accessorKey: "address" },
-  { header: "Email", accessorKey: "email" },
-  { header: "Phone", accessorKey: "phone" },
-  { header: "Joining Date", 
-    accessorKey: "joiningDate",
-    cell: (info: StaffColumnProps) => {
-      const date = info.getValue() ? new Date(info.getValue()) : null;
-      return date ? format(date, 'PP') : 'N/A';
-    }
-  },
-  { header: "Status", accessorKey: "status" }
-];
-
-const ManageStaff = () => {
+export default function ManageStaff() {
+  const router = useRouter();
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
-  const [date, setDate] = useState<Date | undefined>();
-  const [mainDate, setMainDate] = useState<Date | undefined>();
-  const [searchTerm, setSearchTerm] = useState('');
   const [filteredStaff, setFilteredStaff] = useState<StaffMember[]>([]);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
-
-  const fetchStaff = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'staff'));
-      const list = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as StaffMember[];
-      setStaffList(list);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to fetch staff data.");
-    }
-  };
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined, to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  });
+  const [deleteStaffId, setDeleteStaffId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectAll, setSelectAll] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<Set<string>>(new Set());
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  // Sorting
+  const [sortField, setSortField] = useState<keyof StaffMember>('joiningDate');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  
+  // Status filter
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchStaff();
   }, []);
 
   useEffect(() => {
+    applyFilters();
+  }, [staffList, searchTerm, dateRange, statusFilter, sortField, sortDirection]);
+
+  const fetchStaff = async () => {
+    setLoading(true);
+    try {
+      const staffCollection = collection(db, 'staff');
+      const staffSnapshot = await getDocs(query(staffCollection, orderBy('joiningDate', 'desc')));
+      
+      if (staffSnapshot.empty) {
+        setStaffList([]);
+        setFilteredStaff([]);
+        toast.error('No staff members found');
+      } else {
+        const list = staffSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as StaffMember[];
+        setStaffList(list);
+        setFilteredStaff(list);
+        toast.success(`${list.length} staff members loaded`);
+      }
+    } catch (error) {
+      console.error("Error fetching staff:", error);
+      toast.error("Failed to fetch staff data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyFilters = () => {
     let filtered = [...staffList];
     
+    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(staff => 
         staff.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         staff.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         staff.phone?.includes(searchTerm) ||
-        staff.staffId?.toLowerCase().includes(searchTerm.toLowerCase())
+        staff.staffId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        staff.role?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    if (date && mainDate) {
+    // Date range filter
+    if (dateRange.from && dateRange.to) {
       filtered = filtered.filter(staff => {
         const staffDate = new Date(staff.joiningDate);
-        return staffDate >= date && staffDate <= mainDate;
+        return staffDate >= dateRange.from! && staffDate <= dateRange.to!;
       });
     }
-
+    
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(staff => 
+        staff.status?.toLowerCase() === statusFilter.toLowerCase()
+      );
+    }
+    
+    // Sorting
+    filtered.sort((a, b) => {
+      const fieldA = a[sortField];
+      const fieldB = b[sortField];
+      
+      if (typeof fieldA === 'string' && typeof fieldB === 'string') {
+        return sortDirection === 'asc' 
+          ? fieldA.localeCompare(fieldB) 
+          : fieldB.localeCompare(fieldA);
+      }
+      
+      if (fieldA instanceof Date && fieldB instanceof Date) {
+        return sortDirection === 'asc' 
+          ? fieldA.getTime() - fieldB.getTime() 
+          : fieldB.getTime() - fieldA.getTime();
+      }
+      
+      // Handle date strings
+      if (sortField === 'joiningDate' || sortField === 'createdAt' || sortField === 'updatedAt') {
+        const dateA = new Date(fieldA as string | number | Date);
+        const dateB = new Date(fieldB as string | number | Date);
+        return sortDirection === 'asc' 
+          ? dateA.getTime() - dateB.getTime() 
+          : dateB.getTime() - dateA.getTime();
+      }
+      
+      return 0;
+    });
+    
     setFilteredStaff(filtered);
-  }, [staffList, searchTerm, date, mainDate]);
+  };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this staff member?')) return;
-    
     try {
       await deleteDoc(doc(db, 'staff', id));
-      setStaffList(staffList.filter((staff) => staff.id !== id));
-      toast.success("Staff deleted successfully!");
+      setStaffList(staffList.filter(staff => staff.id !== id));
+      setDeleteDialogOpen(false);
+      setDeleteStaffId(null);
+      toast.success("Staff member deleted successfully");
     } catch (error) {
       console.error("Error deleting staff:", error);
-      toast.error("Error deleting staff.");
+      toast.error("Failed to delete staff member");
     }
   };
 
-  const handleEdit = async () => {
-    if (!selectedStaff) return;
-    
+  const handleSort = (field: keyof StaffMember) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedStaff(new Set());
+    } else {
+      const allIds = filteredStaff.map(staff => staff.id);
+      setSelectedStaff(new Set(allIds));
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const toggleSelectStaff = (id: string) => {
+    const newSelected = new Set(selectedStaff);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedStaff(newSelected);
+    setSelectAll(newSelected.size === filteredStaff.length);
+  };
+
+  const handleBulkDelete = async () => {
     try {
-      await updateDoc(doc(db, 'staff', selectedStaff.id), selectedStaff);
-      toast.success("Staff updated successfully!");
-      fetchStaff();
-      setEditModalOpen(false);
+      const promises = Array.from(selectedStaff).map(id => 
+        deleteDoc(doc(db, 'staff', id))
+      );
+      
+      await Promise.all(promises);
+      setStaffList(staffList.filter(staff => !selectedStaff.has(staff.id)));
+      setSelectedStaff(new Set());
+      setSelectAll(false);
+      toast.success(`${selectedStaff.size} staff members deleted successfully`);
     } catch (error) {
-      console.error("Error updating staff:", error);
-      toast.error("Error updating staff.");
+      console.error("Error bulk deleting staff:", error);
+      toast.error("Failed to delete selected staff members");
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof StaffMember) => {
-    if (selectedStaff) {
-      setSelectedStaff({
-        ...selectedStaff,
-        [field]: e.target.value
-      });
-    }
-  };
+  // Pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredStaff.slice(indexOfFirstItem, indexOfLastItem);
+  
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
-    <div className="relative space-y-4">
-        <PageHeading heading={'Manage Staff'} button1={
-          <Link href="/staff/create">
-            <Button variant={'outline'}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Staff
-            </Button>
-          </Link>
-        } />
-
-      <div className="min-h-[calc(100vh_-_160px)] w-full">
-        <div className="flex items-center justify-between gap-4 overflow-x-auto rounded-t-lg bg-white px-5 py-[17px]">
-          <div className="flex items-center gap-2.5">
-            <input
-              type="text"
+    <div className="space-y-6">
+      <PageHeading heading="Manage Staff" />
+      
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Input
+              type="search"
               placeholder="Search staff..."
+              className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant={'outline'}>
-                    <CalendarCheck className="mr-2 h-4 w-4" />
-                    {date ? format(date, 'PP') : <span>Start date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="!w-auto p-0">
-                  <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
-                </PopoverContent>
-              </Popover>
-              <span className="text-xs font-medium text-gray-700">To</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant={'outline'}>
-                    <CalendarCheck className="mr-2 h-4 w-4" />
-                    {mainDate ? format(mainDate, 'PP') : <span>End date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="!w-auto p-0">
-                  <Calendar mode="single" selected={mainDate} onSelect={setMainDate} initialFocus />
-                </PopoverContent>
-              </Popover>
-            </div>
           </div>
-        </div>
-
-        <div className="overflow-x-auto bg-white">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {staffColumns.map((col) => (
-                  <th key={col.header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {col.header}
-                  </th>
-                ))}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredStaff.map((staff) => (
-                <tr key={staff.id} className="hover:bg-gray-50">
-                  {staffColumns.map((col) => (
-                    <td key={col.header} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {col.cell
-                        ? col.cell({ getValue: () => staff[col.accessorKey] })
-                        : staff[col.accessorKey]}
-                    </td>
-                  ))}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex gap-2">
-                      <Link href={`/staff/details?id=${staff.id}`}>
-                        <Button variant="outline" size="sm">
-                          View
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedStaff(staff);
-                          setEditModalOpen(true);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(staff.id)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {editModalOpen && selectedStaff && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">Edit Staff Details</h2>
-            <div className="space-y-4">
-              <Input
-                type="text"
-                value={selectedStaff.name}
-                onChange={(e) => handleInputChange(e, 'name')}
-                placeholder="Name"
+          
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full md:w-auto justify-start">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  "Filter by date"
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange.from}
+                selected={dateRange}
+                onSelect={(range) => {
+                  if (range) {
+                    setDateRange({ 
+                      from: range.from, 
+                      to: range.to || range.from 
+                    });
+                  } else {
+                    setDateRange({ from: undefined, to: undefined });
+                  }
+                }}
+                numberOfMonths={2}
               />
-              <Input
-                type="text"
-                value={selectedStaff.role}
-                onChange={(e) => handleInputChange(e, 'role')}
-                placeholder="Role"
-              />
-              <Input
-                type="text"
-                value={selectedStaff.address}
-                onChange={(e) => handleInputChange(e, 'address')}
-                placeholder="Address"
-              />
-              <Input
-                type="email"
-                value={selectedStaff.email}
-                onChange={(e) => handleInputChange(e, 'email')}
-                placeholder="Email"
-              />
-              <Input
-                type="tel"
-                value={selectedStaff.phone}
-                onChange={(e) => handleInputChange(e, 'phone')}
-                placeholder="Phone"
-              />
-              <Input
-                type="text"
-                value={selectedStaff.status}
-                onChange={(e) => handleInputChange(e, 'status')}
-                placeholder="Status"
-              />
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setEditModalOpen(false)}>
-                  Cancel
+              <div className="flex items-center justify-between p-3 border-t border-border">
+                <Button
+                  variant="ghost"
+                  onClick={() => setDateRange({ from: undefined, to: undefined })}
+                  className="text-xs h-7"
+                >
+                  Clear
                 </Button>
-                <Button onClick={handleEdit}>
-                  Save Changes
+                <Button 
+                  variant="default"
+                  onClick={() => applyFilters()}
+                  className="text-xs h-7"
+                >
+                  Apply
                 </Button>
               </div>
-            </div>
-          </div>
+            </PopoverContent>
+          </Popover>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full md:w-auto justify-start">
+                Status: {statusFilter === 'all' ? 'All' : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => setStatusFilter('all')}>
+                All
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter('active')}>
+                Active
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter('inactive')}>
+                Inactive
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter('onleave')}>
+                On Leave
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      )}
+        
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          {selectedStaff.size > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="w-full md:w-auto">
+                  Delete Selected ({selectedStaff.size})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete {selectedStaff.size} selected staff members? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleBulkDelete}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          
+          <Button className="w-full md:w-auto" onClick={() => router.push('/staff/add')}>
+            <Plus className="mr-2 h-4 w-4" /> Add Staff
+          </Button>
+        </div>
+      </div>
+      
+      <Card>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            </div>
+          ) : filteredStaff.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64">
+              <p className="text-gray-500 mb-4">No staff members found</p>
+              <Button onClick={() => router.push('/staff/add')}>Add Staff</Button>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox 
+                        checked={selectAll} 
+                        onCheckedChange={toggleSelectAll} 
+                        aria-label="Select all"
+                      />
+                    </TableHead>
+                    <TableHead className="w-14"></TableHead>
+                    <TableHead>
+                      <Button 
+                        variant="ghost" 
+                        className="flex items-center gap-1 p-0 font-medium"
+                        onClick={() => handleSort('staffId')}
+                      >
+                        ID
+                        {sortField === 'staffId' && (
+                          <ArrowUpDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button 
+                        variant="ghost" 
+                        className="flex items-center gap-1 p-0 font-medium"
+                        onClick={() => handleSort('name')}
+                      >
+                        Name
+                        {sortField === 'name' && (
+                          <ArrowUpDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button 
+                        variant="ghost" 
+                        className="flex items-center gap-1 p-0 font-medium"
+                        onClick={() => handleSort('role')}
+                      >
+                        Role
+                        {sortField === 'role' && (
+                          <ArrowUpDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>
+                      <Button 
+                        variant="ghost" 
+                        className="flex items-center gap-1 p-0 font-medium"
+                        onClick={() => handleSort('joiningDate')}
+                      >
+                        Joining Date
+                        {sortField === 'joiningDate' && (
+                          <ArrowUpDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button 
+                        variant="ghost" 
+                        className="flex items-center gap-1 p-0 font-medium"
+                        onClick={() => handleSort('status')}
+                      >
+                        Status
+                        {sortField === 'status' && (
+                          <ArrowUpDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentItems.map((staff) => (
+                    <TableRow key={staff.id}>
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedStaff.has(staff.id)} 
+                          onCheckedChange={() => toggleSelectStaff(staff.id)}
+                          aria-label={`Select ${staff.name}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="relative h-10 w-10 rounded-full overflow-hidden bg-gray-100">
+                          {staff.profilePic ? (
+                            <Image 
+                              src={staff.profilePic} 
+                              alt={staff.name} 
+                              fill 
+                              className="object-cover" 
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full w-full text-gray-500 text-lg font-medium">
+                              {staff.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">{staff.staffId}</TableCell>
+                      <TableCell>{staff.name}</TableCell>
+                      <TableCell>{staff.role}</TableCell>
+                      <TableCell>{staff.email}</TableCell>
+                      <TableCell>
+                        {staff.joiningDate ? format(new Date(staff.joiningDate), 'MMM d, yyyy') : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={
+                            staff.status.toLowerCase() === 'active' ? 'success' : 
+                            staff.status.toLowerCase() === 'inactive' ? 'danger' : 
+                            'outline'
+                          }
+                        >
+                          {staff.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Open menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => router.push(`/staff/details?id=${staff.id}`)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => {
+                                setDeleteStaffId(staff.id);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {/* Pagination */}
+              <div className="flex items-center justify-between p-4 border-t">
+                <div className="text-sm text-gray-500">
+                  Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredStaff.length)} of {filteredStaff.length} staff
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => paginate(currentPage - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={indexOfLastItem >= filteredStaff.length}
+                    onClick={() => paginate(currentPage + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this staff member? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteStaffId && handleDelete(deleteStaffId)}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-};
-
-export default ManageStaff;
+}

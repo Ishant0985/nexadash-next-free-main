@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
   TableHead,
-  TableBody,
+  TableBody, 
   TableCell,
 } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
@@ -28,17 +28,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -132,7 +121,7 @@ const invoiceFormSchema = z
     amountPaid: z.number().min(0).optional(), // New field for amount paid
     upiId: z.string().optional(),
     notes: z.string().optional(),
-    taxRate: z.number().min(1, { message: 'Tax rate must be at least 1%' }).max(100, { message: 'Tax rate cannot exceed 100%' }),
+    taxRate: z.number().min(0, { message: 'Tax rate cannot be negative' }).max(100, { message: 'Tax rate cannot exceed 100%' }),
     items: z.array(
       z.object({
         id: z.string(),
@@ -202,8 +191,6 @@ export default function AddInvoicePage() {
   // Modal states
   const [openAddCustomer, setOpenAddCustomer] = useState(false);
   const [openAddBiller, setOpenAddBiller] = useState(false); // New state for biller modal
-  const [openAddProduct, setOpenAddProduct] = useState(false);
-  const [openAddService, setOpenAddService] = useState(false);
   
   // Payment details state
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
@@ -361,6 +348,25 @@ export default function AddInvoicePage() {
 
   // Item handlers
   const handleAddItem = () => {
+    // Check if all current items have a product/service selected or are custom with description
+    const hasIncompleteItems = watchItems.some(item => {
+      if (item.type === 'product' && !item.productId) {
+        return true;
+      }
+      if (item.type === 'service' && !item.serviceId) {
+        return true;
+      }
+      if (item.type === 'custom' && (!item.description || item.description.trim() === '')) {
+        return true;
+      }
+      return false;
+    });
+
+    if (hasIncompleteItems) {
+      toast.error("Please select a product/service for the current item before adding a new one.");
+      return;
+    }
+
     setValue('items', [
       ...watchItems,
       { id: crypto.randomUUID(), type: 'product', description: '', quantity: 1, price: 0, total: 0 }
@@ -413,15 +419,34 @@ export default function AddInvoicePage() {
       } : item
     );
     setValue('items', updatedItems);
+    
+    // Show toast message to guide user on next step
+    if (type === 'product') {
+      toast('Please select a product from the dropdown', { icon: 'ℹ️' });
+    } else if (type === 'service') {
+      toast('Please select a service from the dropdown', { icon: 'ℹ️' });
+    } else if (type === 'custom') {
+      toast('Please enter a description for the custom item', { icon: 'ℹ️' });
+    }
   };
 
   // When a product is selected, load its name, description (if available) and price
   const handleProductSelect = (index: number, productId: string) => {
+    // Check if this product already exists in the invoice items
+    const isDuplicate = watchItems.some((item, idx) => 
+      idx !== index && item.type === 'product' && item.productId === productId
+    );
+    
+    if (isDuplicate) {
+      toast.error("This product is already added to the invoice.");
+      return;
+    }
+    
     const product = products.find(p => p.id === productId);
     if (product) {
       const updatedItems = [...watchItems];
       const item = updatedItems[index];
-      const price = isNaN(product.price) ? 0 : product.price;
+      const price = isNaN(product.sellingPrice) ? 0 : product.sellingPrice;
       const quantity = isNaN(item.quantity) ? 1 : item.quantity;
       
       updatedItems[index] = {
@@ -438,6 +463,16 @@ export default function AddInvoicePage() {
 
   // When a service is selected, load its name, description and price automatically
   const handleServiceSelect = (index: number, serviceId: string) => {
+    // Check if this service already exists in the invoice items
+    const isDuplicate = watchItems.some((item, idx) => 
+      idx !== index && item.type === 'service' && item.serviceId === serviceId
+    );
+    
+    if (isDuplicate) {
+      toast.error("This service is already added to the invoice.");
+      return;
+    }
+    
     const service = services.find(s => s.id === serviceId);
     if (service) {
       const updatedItems = [...watchItems];
@@ -527,90 +562,17 @@ export default function AddInvoicePage() {
     }
   };
 
-  // New Customer Creation with custom id: [C1], [C2], etc.
-  const handleCreateNewCustomer = async () => {
-    try {
-      if (!newCustomer.name || (!newCustomer.email && !newCustomer.phone)) {
-        toast.error('Customer name and either email or phone are required.');
-        return;
-      }
-      const customerData = { ...newCustomer };
-      const docRef = await addDoc(collection(db, 'customers'), customerData);
-      const newCustomerWithId = { 
-        id: docRef.id, 
-        name: newCustomer.name,
-        email: newCustomer.email,
-        phone: newCustomer.phone,
-        country: newCustomer.country,
-        state: newCustomer.state,
-        district: newCustomer.district,
-        city: newCustomer.city,
-        pincode: newCustomer.pincode,
-        address: newCustomer.address
-      };
-      setCustomers([...customers, newCustomerWithId]);
-      setNewCustomer({ name: '', email: '', phone: '', country: '', state: '', district: '', city: '', pincode: '', address: '' });
-      toast.success('Customer added successfully!');
-      setValue('customer', docRef.id);
-      setOpenAddCustomer(false);
-    } catch (error) {
-      console.error('Error adding customer:', error);
-      toast.error('Failed to add customer.');
-    }
+  // Update the navigateToAddCustomer function to add a query parameter
+  const navigateToAddCustomer = () => {
+    // Navigate to the customer add page with a query parameter
+    router.push('/customer/add?from=invoice');
   };
 
-  // New Product Creation with custom id: [P1], [P2], etc.
-  const handleCreateNewProduct = async () => {
-    try {
-      if (!newProduct.name || newProduct.price <= 0) {
-        toast.error('Product name and a valid price are required.');
-        return;
-      }
-      const customId = `[P${products.length + 1}]`;
-      const productData = { ...newProduct, productId: customId };
-      await addDoc(collection(db, 'products'), productData);
-      const newProductWithId = { 
-        id: customId, 
-        name: newProduct.name,
-        description: newProduct.description,
-        price: newProduct.price,
-        category: newProduct.category,
-        image: newProduct.image
-      };
-      setProducts([...products, newProductWithId]);
-      setNewProduct({ name: '', description: '', price: 0, category: '', image: '' });
-      toast.success('Product added successfully!');
-      setOpenAddProduct(false);
-    } catch (error) {
-      console.error('Error adding product:', error);
-      toast.error('Failed to add product.');
-    }
-  };
-
-  // New Service Creation with custom id: [S1], [S2], etc.
-  const handleCreateNewService = async () => {
-    try {
-      if (!newService.name || newService.cost <= 0) {
-        toast.error('Service name and a valid cost are required.');
-        return;
-      }
-      const customId = `[S${services.length + 1}]`;
-      const serviceData = { ...newService, serviceId: customId };
-      await addDoc(collection(db, 'services'), serviceData);
-      const newServiceWithId = {
-        id: customId,
-        name: newService.name,
-        description: newService.description,
-        cost: newService.cost
-      };
-      setServices([...services, newServiceWithId]);
-      setNewService({ name: '', description: '', cost: 0 });
-      toast.success('Service added successfully!');
-      setOpenAddService(false);
-    } catch (error) {
-      console.error('Error adding service:', error);
-      toast.error('Failed to add service.');
-    }
+  // Add a function to navigate to Add Stock page
+  const navigateToAddStock = (type: 'Product' | 'Service') => {
+    // Store current invoice state in session storage to return to it later
+    // After adding product/service, user will return to continue creating invoice
+    router.push(`/inventory/stock/add?type=${type}`);
   };
 
   // Calculate due amount based on payment status and amount paid
@@ -635,76 +597,141 @@ export default function AddInvoicePage() {
     return totalAmount;
   };
 
+  // Add field-level validation for the customer select
+  const handleCustomerChange = (value: string) => {
+    setValue('customer', value);
+    if (!value) {
+      toast.error('Please select a customer');
+    }
+  };
+
+  // Add field-level validation for the biller select
+  const handleBillerChange = (value: string) => {
+    setValue('biller', value);
+    if (!value) {
+      toast.error('Please select a biller');
+    }
+  };
+
+  // Add field-level validation for the payment method
+  const handlePaymentMethodChange = (value: string) => {
+    setValue('paymentMethod', value);
+    if (value === 'Upi' && !watch('upiId')) {
+      toast.error('Please provide a UPI ID when selecting UPI payment method');
+    }
+  };
+
+  // Add these state variables after the existing state declarations
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [serviceSearch, setServiceSearch] = useState('');
+
+  // Add these filter functions before the return statement
+  const filteredCustomers = customers.filter(customer => {
+    const searchTerm = customerSearch.toLowerCase();
+    return (
+      customer.customerId?.toLowerCase().includes(searchTerm) ||
+      customer.name?.toLowerCase().includes(searchTerm) ||
+      customer.email?.toLowerCase().includes(searchTerm) ||
+      customer.phone?.toLowerCase().includes(searchTerm)
+    );
+  });
+
+  const filteredProducts = products.filter(product => {
+    const searchTerm = productSearch.toLowerCase();
+    return (
+      product.productId?.toLowerCase().includes(searchTerm) ||
+      product.name?.toLowerCase().includes(searchTerm) ||
+      product.description?.toLowerCase().includes(searchTerm)
+    );
+  });
+
+  const filteredServices = services.filter(service => {
+    const searchTerm = serviceSearch.toLowerCase();
+    return (
+      service.serviceId?.toLowerCase().includes(searchTerm) ||
+      service.name?.toLowerCase().includes(searchTerm) ||
+      service.description?.toLowerCase().includes(searchTerm)
+    );
+  });
+
   const onSubmit = async (data: InvoiceFormValues) => {
     try {
-      setIsSubmitting(true);
-
-      // Validate customer and biller
+      // Validate all required fields before submission
+      let hasErrors = false;
+      
+      // Check customer
       if (!data.customer) {
         toast.error('Please select a customer');
-        setIsSubmitting(false);
-        return;
+        hasErrors = true;
       }
 
+      // Check biller
       if (!data.biller) {
         toast.error('Please select a biller');
-        setIsSubmitting(false);
-        return;
+        hasErrors = true;
       }
 
+      // Check dates
       if (!data.invoiceDate) {
         toast.error('Please select an invoice date');
-        setIsSubmitting(false);
-        return;
+        hasErrors = true;
       }
 
       if (!data.dueDate) {
         toast.error('Please select a due date');
-        setIsSubmitting(false);
-        return;
+        hasErrors = true;
       }
 
+      // Check UPI ID if payment method is UPI
+      if (data.paymentMethod === 'Upi' && !data.upiId?.trim()) {
+        toast.error('Please enter a UPI ID when payment method is UPI');
+        hasErrors = true;
+      }
+      
       // Validate items
       if (!data.items || data.items.length === 0) {
         toast.error('Please add at least one item to the invoice');
-        setIsSubmitting(false);
+        hasErrors = true;
+      } else {
+        // Check individual items
+        for (let i = 0; i < data.items.length; i++) {
+          const item = data.items[i];
+          if (item.type === 'product' && !item.productId) {
+            toast.error(`Item #${i+1}: Please select a product`);
+            hasErrors = true;
+          } else if (item.type === 'service' && !item.serviceId) {
+            toast.error(`Item #${i+1}: Please select a service`);
+            hasErrors = true;
+          } else if (item.type === 'custom' && (!item.description || item.description.trim() === '')) {
+            toast.error(`Item #${i+1}: Please enter a description for the custom item`);
+            hasErrors = true;
+          }
+          
+          if (typeof item.quantity !== 'number' || isNaN(item.quantity) || item.quantity <= 0) {
+            toast.error(`Item #${i+1}: Please enter a valid quantity (greater than 0)`);
+            hasErrors = true;
+          }
+          
+          if (typeof item.price !== 'number' || isNaN(item.price)) {
+            toast.error(`Item #${i+1}: Please enter a valid price`);
+            hasErrors = true;
+          }
+        }
+      }
+      
+      // If any validation errors, return early
+      if (hasErrors) {
         return;
       }
-
-      // Check for invalid items
-      for (let i = 0; i < data.items.length; i++) {
-        const item = data.items[i];
-        if (!item.description || item.description.trim() === '') {
-          toast.error(`Item #${i+1} is missing a description`);
-          setIsSubmitting(false);
-          return;
-        }
-        
-        if (typeof item.quantity !== 'number' || isNaN(item.quantity) || item.quantity <= 0) {
-          toast.error(`Item #${i+1} has an invalid quantity`);
-          // Fix the quantity automatically
-          const updatedItems = [...data.items];
-          updatedItems[i] = { ...updatedItems[i], quantity: 1 };
-          setValue('items', updatedItems);
-          setIsSubmitting(false);
-          return;
-        }
-        
-        if (typeof item.price !== 'number' || isNaN(item.price)) {
-          toast.error(`Item #${i+1} has an invalid price`);
-          // Fix the price automatically
-          const updatedItems = [...data.items];
-          updatedItems[i] = { ...updatedItems[i], price: 0 };
-          setValue('items', updatedItems);
-          setIsSubmitting(false);
-          return;
-        }
-      }
+      
+      setIsSubmitting(true);
 
       // Get customer and biller details
       const selectedCustomer = customers.find(c => c.id === data.customer) || null;
       const selectedBiller = billers.find(b => b.id === data.biller) || null;
       
+      // Double-check that we have valid customer and biller
       if (!selectedCustomer) {
         toast.error('Please select a valid customer');
         setIsSubmitting(false);
@@ -757,16 +784,16 @@ export default function AddInvoicePage() {
       
       // Create safe customerDetails and billerDetails
       const customerDetails = {
-        id: selectedCustomer.id,
-        name: selectedCustomer.name || '',
-        email: selectedCustomer.email || '',
-        phone: selectedCustomer.phone || '',
-        country: selectedCustomer.country || '',
-        state: selectedCustomer.state || '',
-        district: selectedCustomer.district || '',
-        city: selectedCustomer.city || '',
-        pincode: selectedCustomer.pincode || '',
-        address: selectedCustomer.address || '',
+        id: selectedCustomer!.id,
+        name: selectedCustomer!.firstName + ' ' + selectedCustomer!.lastName || '',
+        email: selectedCustomer!.email || '',
+        phone: selectedCustomer!.phone || '',
+        country: selectedCustomer!.country || '',
+        state: selectedCustomer!.state || '',
+        district: selectedCustomer!.district || '',
+        city: selectedCustomer!.city || '',
+        pincode: selectedCustomer!.pincode || '',
+        address: selectedCustomer!.address || '',
       };
       
       const billerDetails = {
@@ -873,9 +900,8 @@ export default function AddInvoicePage() {
                 <Input
                   id="taxRate"
                   type="number"
-                  min={1}
+                  min={0}
                   max={100}
-                  defaultValue="18"
                   {...register('taxRate', { 
                     valueAsNumber: true,
                     onChange: (e) => {
@@ -902,112 +928,45 @@ export default function AddInvoicePage() {
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
               <div>
                 <Label htmlFor="customer">Customer</Label>
-                <div className="flex items-center space-x-2">
-                  <Select onValueChange={(value) => setValue('customer', value)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {(customer.phone || 'No Phone') + ' - ' + customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <AlertDialog open={openAddCustomer} onOpenChange={setOpenAddCustomer}>
-                    <AlertDialogTrigger asChild>
-                      <Button type="button" variant="outline" size="sm">
-                        Add New
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Add New Customer</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Enter the customer details: Name, (Phone or Email), Country, State, District, City, Pincode.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerName" className="text-right">Name</Label>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Select onValueChange={handleCustomerChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="p-2">
                           <Input
-                            id="newCustomerName"
-                            className="col-span-3"
-                            value={newCustomer.name}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                            placeholder="Search customers..."
+                            value={customerSearch}
+                            onChange={(e) => setCustomerSearch(e.target.value)}
+                            className="mb-2"
                           />
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerEmail" className="text-right">Email</Label>
-                          <Input
-                            id="newCustomerEmail"
-                            className="col-span-3"
-                            value={newCustomer.email}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                          />
+                        <div className="max-h-[200px] overflow-y-auto">
+                          {filteredCustomers.length > 0 ? (
+                            filteredCustomers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.customerId} - {customer.name} ({customer.phone || customer.email || 'No contact'})
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="p-2 text-center text-sm text-gray-500">
+                              No customers found
+                            </div>
+                          )}
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerPhone" className="text-right">Phone</Label>
-                          <Input
-                            id="newCustomerPhone"
-                            className="col-span-3"
-                            value={newCustomer.phone}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerCountry" className="text-right">Country</Label>
-                          <Input
-                            id="newCustomerCountry"
-                            className="col-span-3"
-                            value={newCustomer.country}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, country: e.target.value })}
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerState" className="text-right">State</Label>
-                          <Input
-                            id="newCustomerState"
-                            className="col-span-3"
-                            value={newCustomer.state}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, state: e.target.value })}
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerDistrict" className="text-right">District</Label>
-                          <Input
-                            id="newCustomerDistrict"
-                            className="col-span-3"
-                            value={newCustomer.district}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, district: e.target.value })}
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerCity" className="text-right">City</Label>
-                          <Input
-                            id="newCustomerCity"
-                            className="col-span-3"
-                            value={newCustomer.city}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="newCustomerPincode" className="text-right">Pincode</Label>
-                          <Input
-                            id="newCustomerPincode"
-                            className="col-span-3"
-                            value={newCustomer.pincode}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, pincode: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setOpenAddCustomer(false)}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleCreateNewCustomer}>Create</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={navigateToAddCustomer}
+                    >
+                      Add New
+                    </Button>
+                  </div>
                 </div>
                 {errors.customer && <p className="text-red-500 text-sm">{errors.customer.message}</p>}
               </div>
@@ -1015,7 +974,7 @@ export default function AddInvoicePage() {
               <div>
                 <Label htmlFor="biller">Biller Information</Label>
                 <div className="flex items-center space-x-2">
-                  <Select onValueChange={(value) => setValue('biller', value)}>
+                  <Select onValueChange={handleBillerChange}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Biller" />
                     </SelectTrigger>
@@ -1137,7 +1096,7 @@ export default function AddInvoicePage() {
 
               <div>
                 <Label htmlFor="paymentMethod">Payment Method</Label>
-                <Select onValueChange={(value) => setValue('paymentMethod', value)} defaultValue="Cash">
+                <Select onValueChange={handlePaymentMethodChange} defaultValue="Cash">
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select Payment Method" />
                   </SelectTrigger>
@@ -1249,7 +1208,6 @@ export default function AddInvoicePage() {
                             }
                           })}
                           placeholder="Enter amount paid"
-                          defaultValue="0"
                         />
                         {errors.amountPaid && <p className="text-red-500 text-sm">{errors.amountPaid.message}</p>}
                         <p className="text-sm text-gray-500 mt-1">
@@ -1304,64 +1262,41 @@ export default function AddInvoicePage() {
                                   <SelectValue placeholder="Select Product" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {products.map((product) => (
-                                    <SelectItem key={product.id} value={product.id}>
-                                      {product.name}
-                                    </SelectItem>
-                                  ))}
+                                  <div className="p-2">
+                                    <Input
+                                      placeholder="Search products..."
+                                      value={productSearch}
+                                      onChange={(e) => setProductSearch(e.target.value)}
+                                      className="mb-2"
+                                    />
+                                  </div>
+                                  <div className="max-h-[200px] overflow-y-auto">
+                                    {filteredProducts.length > 0 ? (
+                                      filteredProducts
+                                        .filter(product => !watchItems.some(
+                                          (item, idx) => idx !== index && item.type === 'product' && item.productId === product.id
+                                        ))
+                                        .map((product) => (
+                                          <SelectItem key={product.id} value={product.id}>
+                                            {product.productId} - {product.name}
+                                          </SelectItem>
+                                        ))
+                                    ) : (
+                                      <div className="p-2 text-center text-sm text-gray-500">
+                                        No products found
+                                      </div>
+                                    )}
+                                  </div>
                                 </SelectContent>
                               </Select>
-                              <AlertDialog open={openAddProduct} onOpenChange={setOpenAddProduct}>
-                                <AlertDialogTrigger asChild>
-                                  <Button type="button" variant="outline" size="sm">Add New</Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Add New Product</AlertDialogTitle>
-                                    <AlertDialogDescription>Enter product details.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newProductName" className="text-right">Name</Label>
-                                      <Input id="newProductName" className="col-span-3" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newProductDescription" className="text-right">Description</Label>
-                                      <Textarea id="newProductDescription" className="col-span-3" value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newProductPrice" className="text-right">Price (INR)</Label>
-                                      <Input 
-                                        id="newProductPrice" 
-                                        className="col-span-3" 
-                                        type="number" 
-                                        min="0"
-                                        step="0.01"
-                                        value={newProduct.price} 
-                                        onChange={(e) => {
-                                          const value = parseFloat(e.target.value);
-                                          setNewProduct({ 
-                                            ...newProduct, 
-                                            price: isNaN(value) ? 0 : value 
-                                          });
-                                        }} 
-                                      />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newProductCategory" className="text-right">Category</Label>
-                                      <Input id="newProductCategory" className="col-span-3" value={newProduct.category} onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })} />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newProductImage" className="text-right">Image (optional)</Label>
-                                      <Input id="newProductImage" className="col-span-3" placeholder="Image URL" value={newProduct.image} onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })} />
-                                    </div>
-                                  </div>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel onClick={() => setOpenAddProduct(false)}>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleCreateNewProduct}>Create</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => navigateToAddStock('Product')}
+                              >
+                                Add New
+                              </Button>
                             </div>
                           )}
                           {item.type === 'service' && (
@@ -1371,56 +1306,41 @@ export default function AddInvoicePage() {
                                   <SelectValue placeholder="Select Service" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {services.map((service) => (
-                                    <SelectItem key={service.id} value={service.id}>
-                                      {service.name}
-                                    </SelectItem>
-                                  ))}
+                                  <div className="p-2">
+                                    <Input
+                                      placeholder="Search services..."
+                                      value={serviceSearch}
+                                      onChange={(e) => setServiceSearch(e.target.value)}
+                                      className="mb-2"
+                                    />
+                                  </div>
+                                  <div className="max-h-[200px] overflow-y-auto">
+                                    {filteredServices.length > 0 ? (
+                                      filteredServices
+                                        .filter(service => !watchItems.some(
+                                          (item, idx) => idx !== index && item.type === 'service' && item.serviceId === service.id
+                                        ))
+                                        .map((service) => (
+                                          <SelectItem key={service.id} value={service.id}>
+                                            {service.serviceId} - {service.name}
+                                          </SelectItem>
+                                        ))
+                                    ) : (
+                                      <div className="p-2 text-center text-sm text-gray-500">
+                                        No services found
+                                      </div>
+                                    )}
+                                  </div>
                                 </SelectContent>
                               </Select>
-                              <AlertDialog open={openAddService} onOpenChange={setOpenAddService}>
-                                <AlertDialogTrigger asChild>
-                                  <Button type="button" variant="outline" size="sm">Add New</Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Add New Service</AlertDialogTitle>
-                                    <AlertDialogDescription>Enter service details.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newServiceName" className="text-right">Name</Label>
-                                      <Input id="newServiceName" className="col-span-3" value={newService.name} onChange={(e) => setNewService({ ...newService, name: e.target.value })} />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newServiceDescription" className="text-right">Description</Label>
-                                      <Textarea id="newServiceDescription" className="col-span-3" value={newService.description} onChange={(e) => setNewService({ ...newService, description: e.target.value })} />
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor="newServiceCost" className="text-right">Price (INR)</Label>
-                                      <Input 
-                                        id="newServiceCost" 
-                                        className="col-span-3" 
-                                        type="number" 
-                                        min="0"
-                                        step="0.01"
-                                        value={newService.cost} 
-                                        onChange={(e) => {
-                                          const value = parseFloat(e.target.value);
-                                          setNewService({ 
-                                            ...newService, 
-                                            cost: isNaN(value) ? 0 : value 
-                                          });
-                                        }} 
-                                      />
-                                    </div>
-                                  </div>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel onClick={() => setOpenAddService(false)}>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleCreateNewService}>Create</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => navigateToAddStock('Service')}
+                              >
+                                Add New
+                              </Button>
                             </div>
                           )}
                           {item.type === 'custom' && (
@@ -1434,7 +1354,6 @@ export default function AddInvoicePage() {
                           <Input 
                             type="number" 
                             min="1"
-                            defaultValue="1"
                             value={item.quantity === undefined || isNaN(item.quantity) ? 1 : item.quantity} 
                             onChange={(e) => {
                               const val = parseInt(e.target.value);
@@ -1456,7 +1375,6 @@ export default function AddInvoicePage() {
                             type="number" 
                             min="0"
                             step="0.01"
-                            defaultValue="0"
                             value={item.price === undefined || isNaN(item.price) ? 0 : item.price} 
                             onChange={(e) => {
                               const val = parseFloat(e.target.value);

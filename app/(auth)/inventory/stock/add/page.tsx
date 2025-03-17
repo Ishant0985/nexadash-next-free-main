@@ -14,7 +14,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { PlusCircle, Loader2, UploadCloud, X } from 'lucide-react';
 import { auth, db } from '@/firebaseClient';
 import { collection, getDocs, addDoc, query, orderBy, limit, where, getCountFromServer } from 'firebase/firestore';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
@@ -46,7 +45,7 @@ const AddStock = () => {
     // Service state
     const [serviceId, setServiceId] = useState<string>('');
     const [serviceName, setServiceName] = useState<string>('');
-    const [serviceDescription, setServiceDescription] = useState<string>('');
+    const [serviceDescription, setServiceDescription] = useState<string>(''); 
     const [serviceCategory, setServiceCategory] = useState<string>('');
     const [serviceCost, setServiceCost] = useState<number>(0);
     const [serviceImage, setServiceImage] = useState<File | null>(null);
@@ -86,6 +85,18 @@ const AddStock = () => {
             generateServiceId();
         }
     }, [authenticated]);
+
+    // Check for query parameters to set the initial tab
+    useEffect(() => {
+        // Get the URL search params
+        const queryParams = new URLSearchParams(window.location.search);
+        const typeParam = queryParams.get('type');
+        
+        // Set the tab based on the type parameter if it exists
+        if (typeParam === 'Product' || typeParam === 'Service') {
+            setStockType(typeParam);
+        }
+    }, []);
 
     const fetchCategories = async () => {
         try {
@@ -231,7 +242,7 @@ const AddStock = () => {
         }
     };
 
-    const handleAddProduct = async () => {
+    const handleAddProductSuccess = async () => {
         if (!productName || !productDescription || !productCategory) {
             toast.error("Please fill all required fields");
             return;
@@ -274,6 +285,12 @@ const AddStock = () => {
 
             // Generate new ID for next product
             generateProductId();
+            
+            // Check if we came from invoice page and navigate back
+            const queryParams = new URLSearchParams(window.location.search);
+            if (queryParams.has('type')) {
+                router.push('/invoice/create');
+            }
         } catch (error) {
             console.error('Error adding product:', error);
             toast.error("Failed to add product");
@@ -282,7 +299,7 @@ const AddStock = () => {
         }
     };
 
-    const handleAddService = async () => {
+    const handleAddServiceSuccess = async () => {
         if (!serviceName || !serviceDescription || !serviceCategory) {
             toast.error("Please fill all required fields");
             return;
@@ -319,6 +336,12 @@ const AddStock = () => {
 
             // Generate new ID for next service
             generateServiceId();
+            
+            // Check if we came from invoice page and navigate back
+            const queryParams = new URLSearchParams(window.location.search);
+            if (queryParams.has('type')) {
+                router.push('/invoice/create');
+            }
         } catch (error) {
             console.error('Error adding service:', error);
             toast.error("Failed to add service");
@@ -331,10 +354,10 @@ const AddStock = () => {
         <div className="relative space-y-4">
             <PageHeader heading="Add Stock" />
 
-            <Card className=" mt-6">
-                <CardHeader className="text-primary-foreground">
-                    <CardTitle className="text-primary-foreground font-bold text-lg py-2">Select Stock Type</CardTitle>
-                    <CardDescription className="text-primary-foreground text-sm py-2">Choose whether you want to add a product or service</CardDescription>
+            <Card className="mt-6">
+                <CardHeader className="border-b bg-muted/30">
+                    <CardTitle className="font-bold text-xl py-2">Add Stock</CardTitle>
+                    <CardDescription className="text-sm py-2">Add a new product or service to your inventory</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6">
                     <Tabs
@@ -343,10 +366,28 @@ const AddStock = () => {
                         onValueChange={(value) => setStockType(value as 'Product' | 'Service')}
                         className="w-full"
                     >
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="Product">Product</TabsTrigger>
-                            <TabsTrigger value="Service">Service</TabsTrigger>
+                        <TabsList className="flex justify-between items-center mb-5 overflow-x-auto rounded-lg bg-white shadow-sm">
+                            <div className="inline-flex gap-2.5 px-5 py-[11px] text-sm/[18px] font-semibold">
+                                <TabsTrigger 
+                                    value="Product"
+                                    className="leading-3 data-[state=active]:bg-black data-[state=active]:text-white"
+                                >
+                                    Product
+                                </TabsTrigger>
+                                <TabsTrigger 
+                                    value="Service"
+                                    className="leading-3 data-[state=active]:bg-black data-[state=active]:text-white"
+                                >
+                                    Service
+                                </TabsTrigger>
+                            </div>
                         </TabsList>
+                        
+                        <p className="text-sm text-gray-600 mb-4">
+                            {stockType === 'Product' 
+                                ? 'Add a physical product to your inventory with details like quantity, pricing, and category.' 
+                                : 'Add a service that your business offers with details like pricing and category.'}
+                        </p>
 
                         <TabsContent value="Product">
                             <div className="space-y-4 mt-4">
@@ -433,26 +474,24 @@ const AddStock = () => {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="productPurchasePrice">Purchase Price</Label>
+                                        <Label htmlFor="productPurchasePrice">Purchase Price (₹)</Label>
                                         <Input
                                             id="productPurchasePrice"
                                             type="number"
                                             value={productPurchasePrice}
                                             onChange={(e) => setProductPurchasePrice(Number(e.target.value))}
                                             min={0}
-                                            step={0.01}
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="productSellingPrice">Selling Price</Label>
+                                        <Label htmlFor="productSellingPrice">Selling Price (₹)</Label>
                                         <Input
                                             id="productSellingPrice"
                                             type="number"
                                             value={productSellingPrice}
                                             onChange={(e) => setProductSellingPrice(Number(e.target.value))}
                                             min={0}
-                                            step={0.01}
                                         />
                                     </div>
 
@@ -510,7 +549,7 @@ const AddStock = () => {
 
                                 <div className="flex justify-end">
                                     <Button
-                                        onClick={handleAddProduct}
+                                        onClick={handleAddProductSuccess}
                                         disabled={loading}
                                     >
                                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -647,7 +686,7 @@ const AddStock = () => {
 
                                 <div className="flex justify-end">
                                     <Button
-                                        onClick={handleAddService}
+                                        onClick={handleAddServiceSuccess}
                                         disabled={loading}
                                     >
                                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
